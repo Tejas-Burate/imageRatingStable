@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 const userQuizCompetitionQuestionModel_1 = __importDefault(require("../../api/quizCompetition/userQuizCompetitionQuestion/userQuizCompetitionQuestionModel"));
 const sessionModel_1 = __importDefault(require("../../api/quizCompetition/session/sessionModel"));
 const settingModel_1 = __importDefault(require("../../api/setting/settingModel"));
+const userQuizCompetitionQuestionModel_2 = __importDefault(require("../../api/quizCompetition/userQuizCompetitionQuestion/userQuizCompetitionQuestionModel"));
 const createUserQuizQuestionMapping = (data) => __awaiter(void 0, void 0, void 0, function* () {
     const userQuestion = yield userQuizCompetitionQuestionModel_1.default.create(data);
     if (!userQuestion) {
@@ -36,8 +37,14 @@ const getPointsBySessionId = (sessionId) => __awaiter(void 0, void 0, void 0, fu
     return pointsCounter;
 });
 const getActiveQuizSessionBySessionId = (sessionId) => __awaiter(void 0, void 0, void 0, function* () {
-    const data = yield sessionModel_1.default.findById(sessionId).select("_id questionCount");
-    if (data.questionCount >= 30) {
+    const points = yield settingModel_1.default.find();
+    const userQuestions = yield userQuizCompetitionQuestionModel_2.default.find({ sessionId: sessionId });
+    if (userQuestions.length >= points[1].noOfQuizQuestions) {
+        const session = yield sessionModel_1.default.findById(sessionId);
+        if (session) {
+            session.sessionStatus = "Completed";
+            yield session.save();
+        }
         return false;
     }
     else {

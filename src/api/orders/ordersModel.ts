@@ -10,7 +10,7 @@ const orderSchema: Schema = new mongoose.Schema(
     {
         userId: { type: Schema.Types.ObjectId, ref: "Auth", required: true },
         planId: { type: Schema.Types.ObjectId, ref: "SubscriptionPlan", required: true },
-        // typeId: { type: Schema.Types.ObjectId, ref: "SubscriptionType", required: true },
+        typeId: { type: Schema.Types.ObjectId, ref: "SubscriptionType", required: true },
         rzpResponseData: { type: rzpResponseDataSchema, required: true },
         orderStatus: { type: String, required: true },
         paymentStatus: { type: String, required: true, default: "pending" },

@@ -5,6 +5,9 @@ import roleModel from "../role/roleModel";
 import generateJwtToken from "../../shared/utils/jwtToken";
 import Auth from "../../shared/utils/auth";
 import geoip from "geoip-country";
+import generalQuizSessionModel from "../session/sessionModel";
+import competitionQuizSessionModel from "../quizCompetition/session/sessionModel"
+import userQuestionMappingModel from "../userQuestionMapping/userQuestionMappingModel";
 const { calculateAge } = Auth;
 
 const register = async (req: Request, res: Response) => {
@@ -356,6 +359,68 @@ const checkUser = async (req: Request, res: Response) => {
     }
 }
 
+const checkUserActiveSession = async (req: Request, res: Response) => {
+    try {
+        const userId = req.params.userId;
+
+        const generalQuizSession = await generalQuizSessionModel.findOne({ userId, sessionStatus: "Running" });
+        const competitionQuizSession = await competitionQuizSessionModel.findOne({ userId, sessionStatus: "Running" });
+
+        if (generalQuizSession) {
+            const userQuiz = await userQuestionMappingModel.findOne({ sessionId: generalQuizSession._id })
+                .sort({ createdAt: -1 }) // Adjust the field name accordingly if it's not `createdAt`
+                .limit(1);
+
+            if (userQuiz) {
+                // If there are submitted questions
+                res.status(200).json({
+                    status: true,
+                    message: "User has an active general quiz session",
+                    session: generalQuizSession,
+                    sessionType: "general",
+                    payload: {
+                        userId: userQuiz.userId,
+                        categoryId: userQuiz.categoryId,
+                        questionId: userQuiz.questionId,
+                        sessionId: userQuiz.sessionId,
+                        isCorrect: userQuiz.isCorrect,
+                        timeTaken: userQuiz.timeTaken,
+                        status: userQuiz.status,
+                        attempts: userQuiz.attempts
+                    }
+                });
+            } else {
+                // If no questions have been submitted yet, delete the session
+                await generalQuizSessionModel.deleteOne({ _id: generalQuizSession._id });
+                res.status(200).json({
+                    status: true,
+                    message: "User had an active general quiz session but no questions were submitted. The session has been deleted.",
+                    session: null,
+                    sessionType: "general"
+                });
+            }
+        } else if (competitionQuizSession) {
+            res.status(200).json({
+                status: true,
+                message: "User has an active competition quiz session",
+                session: competitionQuizSession,
+                sessionType: "competition"
+            });
+        } else {
+            res.status(200).json({
+                status: false,
+                message: "User has no active sessions",
+                session: null
+            });
+        }
+    } catch (error) {
+        console.error('Error checking for active session:', error);
+        res.status(500).json({ status: false, message: "Internal server error", error });
+    }
+};
+
+
+
 export {
     register,
     login,
@@ -365,5 +430,6 @@ export {
     getAuthFilters,
     googleAuthLogAndRegister,
     checkUser,
-    updateUserCountry
+    updateUserCountry,
+    checkUserActiveSession
 };

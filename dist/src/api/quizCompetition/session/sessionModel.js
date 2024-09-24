@@ -8,5 +8,6 @@ const competitionSessionSchema = new mongoose_1.default.Schema({
     userId: { type: mongoose_1.default.Schema.Types.ObjectId, ref: "Auth", required: true },
     quizId: { type: mongoose_1.default.Schema.Types.ObjectId, ref: "QuizCompetition", required: true },
     questionCount: { type: Number, required: true, default: 0 },
+    sessionStatus: { type: String, required: true, default: "Running" }
 }, { timestamps: true });
 exports.default = mongoose_1.default.model("CompetitionSession", competitionSessionSchema);

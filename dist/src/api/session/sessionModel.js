@@ -8,5 +8,6 @@ const sessionSchema = new mongoose_1.default.Schema({
     userId: { type: mongoose_1.default.Schema.Types.ObjectId, ref: "Auth", required: true },
     categoryId: { type: mongoose_1.default.Schema.Types.ObjectId, ref: "QuestionCategory", required: true },
     questionCount: { type: Number, required: true, default: 0 },
+    sessionStatus: { type: String, required: true, default: "Running" }
 }, { timestamps: true });
 exports.default = mongoose_1.default.model("Session", sessionSchema);

@@ -4,7 +4,7 @@ import { ObjectId } from "mongoose";
 import userQuestionMappingModel from "../../api/userQuestionMapping/userQuestionMappingModel";
 
 const createSession = async (userId: ObjectId, categoryId: ObjectId) => {
-    const session = await sessionModel.create({ userId, categoryId, questionCount: 0 });
+    const session = await sessionModel.create({ userId, categoryId, questionCount: 0, sessionStatus: "Running" });
     return session;
 };
 
@@ -41,6 +41,11 @@ const verifyGivenQuestionLimit = async (sessionId: ObjectId) => {
     const userQuestions = await userQuestionMappingModel.find({ sessionId: sessionId });
 
     if (userQuestions.length >= (points[0].noOfQuizQuestions as number)) {
+        const session = await sessionModel.findById(sessionId);
+        if (session) {
+            session.sessionStatus = "Completed";
+            await session.save();
+        }
         return false;
     } else {
         return true;

@@ -21,7 +21,7 @@ const getUserSubscriptionsById = async (req: Request, res: Response) => {
 
 const getAllUserSubscriptionsByUserId = async (req: Request, res: Response) => {
     const id = req.params.id;
-    const userSubscriptions = await userSubscriptionsModel.find({ userId: id });
+    const userSubscriptions = await userSubscriptionsModel.find({ userId: id }).populate("userId planId");
     if (userSubscriptions.length === 0) {
         return res.status(404).json({ status: false, message: "User Subscriptions data not found" })
     }

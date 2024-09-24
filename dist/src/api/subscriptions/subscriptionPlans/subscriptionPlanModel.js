@@ -9,6 +9,7 @@ const subscriptionPlanSchema = new mongoose_1.default.Schema({
     planName: { type: String, required: true },
     price: { type: Number, required: true },
     duration: { type: Number, required: true },
+    quizAllowed: { type: Number, required: false },
     benefits: [{ type: String, required: true }]
 }, { timestamps: true });
 exports.default = mongoose_1.default.model("SubscriptionPlan", subscriptionPlanSchema);

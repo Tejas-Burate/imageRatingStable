@@ -32,7 +32,7 @@ const rzpResponseDataSchema = new mongoose_1.default.Schema({
 const orderSchema = new mongoose_1.default.Schema({
     userId: { type: mongoose_1.Schema.Types.ObjectId, ref: "Auth", required: true },
     planId: { type: mongoose_1.Schema.Types.ObjectId, ref: "SubscriptionPlan", required: true },
-    // typeId: { type: Schema.Types.ObjectId, ref: "SubscriptionType", required: true },
+    typeId: { type: mongoose_1.Schema.Types.ObjectId, ref: "SubscriptionType", required: true },
     rzpResponseData: { type: rzpResponseDataSchema, required: true },
     orderStatus: { type: String, required: true },
     paymentStatus: { type: String, required: true, default: "pending" },

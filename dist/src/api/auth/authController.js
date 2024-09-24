@@ -12,13 +12,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateUserCountry = exports.checkUser = exports.googleAuthLogAndRegister = exports.getAuthFilters = exports.updateAuthById = exports.getAuthById = exports.getAllAuth = exports.login = exports.register = void 0;
+exports.checkUserActiveSession = exports.updateUserCountry = exports.checkUser = exports.googleAuthLogAndRegister = exports.getAuthFilters = exports.updateAuthById = exports.getAuthById = exports.getAllAuth = exports.login = exports.register = void 0;
 const authModel_1 = __importDefault(require("./authModel"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const roleModel_1 = __importDefault(require("../role/roleModel"));
 const jwtToken_1 = __importDefault(require("../../shared/utils/jwtToken"));
 const auth_1 = __importDefault(require("../../shared/utils/auth"));
 const geoip_country_1 = __importDefault(require("geoip-country"));
+const sessionModel_1 = __importDefault(require("../session/sessionModel"));
+const sessionModel_2 = __importDefault(require("../quizCompetition/session/sessionModel"));
+const userQuestionMappingModel_1 = __importDefault(require("../userQuestionMapping/userQuestionMappingModel"));
 const { calculateAge } = auth_1.default;
 const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -339,3 +342,64 @@ const checkUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.checkUser = checkUser;
+const checkUserActiveSession = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.params.userId;
+        const generalQuizSession = yield sessionModel_1.default.findOne({ userId, sessionStatus: "Running" });
+        const competitionQuizSession = yield sessionModel_2.default.findOne({ userId, sessionStatus: "Running" });
+        if (generalQuizSession) {
+            const userQuiz = yield userQuestionMappingModel_1.default.findOne({ sessionId: generalQuizSession._id })
+                .sort({ createdAt: -1 }) // Adjust the field name accordingly if it's not `createdAt`
+                .limit(1);
+            if (userQuiz) {
+                // If there are submitted questions
+                res.status(200).json({
+                    status: true,
+                    message: "User has an active general quiz session",
+                    session: generalQuizSession,
+                    sessionType: "general",
+                    payload: {
+                        userId: userQuiz.userId,
+                        categoryId: userQuiz.categoryId,
+                        questionId: userQuiz.questionId,
+                        sessionId: userQuiz.sessionId,
+                        isCorrect: userQuiz.isCorrect,
+                        timeTaken: userQuiz.timeTaken,
+                        status: userQuiz.status,
+                        attempts: userQuiz.attempts
+                    }
+                });
+            }
+            else {
+                // If no questions have been submitted yet, delete the session
+                yield sessionModel_1.default.deleteOne({ _id: generalQuizSession._id });
+                res.status(200).json({
+                    status: true,
+                    message: "User had an active general quiz session but no questions were submitted. The session has been deleted.",
+                    session: null,
+                    sessionType: "general"
+                });
+            }
+        }
+        else if (competitionQuizSession) {
+            res.status(200).json({
+                status: true,
+                message: "User has an active competition quiz session",
+                session: competitionQuizSession,
+                sessionType: "competition"
+            });
+        }
+        else {
+            res.status(200).json({
+                status: false,
+                message: "User has no active sessions",
+                session: null
+            });
+        }
+    }
+    catch (error) {
+        console.error('Error checking for active session:', error);
+        res.status(500).json({ status: false, message: "Internal server error", error });
+    }
+});
+exports.checkUserActiveSession = checkUserActiveSession;

@@ -3,6 +3,7 @@ import userQuizQuestionModel from "../../api/quizCompetition/userQuizCompetition
 import sessionModel from "../../api/quizCompetition/session/sessionModel";
 import { ObjectId } from "mongoose";
 import settingModel from "../../api/setting/settingModel";
+import userQuizCompetitionQuestionModel from "../../api/quizCompetition/userQuizCompetitionQuestion/userQuizCompetitionQuestionModel";
 const createUserQuizQuestionMapping = async (data: any) => {
 
     const userQuestion = await userQuizQuestionModel.create(data);
@@ -27,8 +28,17 @@ const getPointsBySessionId = async (sessionId: ObjectId) => {
 };
 
 const getActiveQuizSessionBySessionId = async (sessionId: ObjectId) => {
-    const data: any = await sessionModel.findById(sessionId).select("_id questionCount");
-    if (data.questionCount >= 30) {
+
+    const points = await settingModel.find();
+
+    const userQuestions = await userQuizCompetitionQuestionModel.find({ sessionId: sessionId });
+
+    if (userQuestions.length >= (points[1].noOfQuizQuestions as number)) {
+        const session = await sessionModel.findById(sessionId);
+        if (session) {
+            session.sessionStatus = "Completed";
+            await session.save();
+        }
         return false;
     } else {
         return true;

@@ -3,7 +3,7 @@ import settingModel from "../../api/setting/settingModel";
 import { ObjectId } from "mongoose";
 
 const createSession = async (userId: ObjectId, quizId: ObjectId) => {
-    const session = await sessionModel.create({ userId, quizId, questionCount: 0 });
+    const session = await sessionModel.create({ userId, quizId, questionCount: 0, sessionStatus: "Running" });
     return session;
 };
 

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import ordersModel from "./ordersModel";
 import Orders from "../../shared/utils/razorpay";
 import userSubscriptionsModel from "../subscriptions/userSubscriptions/userSubscriptionsModel";
+import subscriptionTypeModel from "../subscriptions/subscriptionType/subscriptionTypeModel";
 
 const { createOrder, verifyPaymentSignature } = Orders;
 
@@ -26,7 +27,7 @@ const createOrders = async (req: Request, res: Response) => {
         const rzpOrderResp = await createOrder(amount)
 
         const order = await ordersModel.create({
-            userId: userId, planId: planId, rzpResponseData: {
+            userId: userId, planId: planId, typeId: typeId, rzpResponseData: {
                 razorpay_order_id: rzpOrderResp.id
             }, orderStatus: rzpOrderResp.status, amount: rzpOrderResp.amount, currency: rzpOrderResp.currency, paymentStatus: "pending"
         });
@@ -56,7 +57,9 @@ const verifyPayment = async (req: Request, res: Response) => {
             { "rzpResponseData.razorpay_order_id": razorpay_order_id },
             { paymentStatus: "paid", "rzpResponseData.razorpay_payment_id": razorpay_payment_id, "rzpResponseData.razorpay_signature": razorpay_signature },
             { new: true }
-        ).populate("planId");
+        ).populate("planId typeId");
+
+        const subscriptions: any = await subscriptionTypeModel.findById(order.typeId);
 
 
         if (!order) {
@@ -73,6 +76,7 @@ const verifyPayment = async (req: Request, res: Response) => {
                 userId: order.userId,
                 planId: order.planId,
                 typeId: order.typeId,
+                subscriptionType: subscriptions.subscriptionType,
                 startDate: startDate,
                 endDate: endDate,
                 status: 'active',

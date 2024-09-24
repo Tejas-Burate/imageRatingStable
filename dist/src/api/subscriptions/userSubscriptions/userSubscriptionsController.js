@@ -33,7 +33,7 @@ const getUserSubscriptionsById = (req, res) => __awaiter(void 0, void 0, void 0,
 exports.getUserSubscriptionsById = getUserSubscriptionsById;
 const getAllUserSubscriptionsByUserId = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const id = req.params.id;
-    const userSubscriptions = yield userSubscriptionsModel_1.default.find({ userId: id });
+    const userSubscriptions = yield userSubscriptionsModel_1.default.find({ userId: id }).populate("userId planId");
     if (userSubscriptions.length === 0) {
         return res.status(404).json({ status: false, message: "User Subscriptions data not found" });
     }

@@ -6,6 +6,6 @@ const router = express.Router();
 
 router.get("/getAllUserSubscriptions", getAllUserSubscriptions)
 router.get("/getUserSubscriptionsById", getUserSubscriptionsById)
-router.get("/getAllUserSubscriptionsByUserId", getAllUserSubscriptionsByUserId)
+router.get("/getAllUserSubscriptionsByUserId/:id", getAllUserSubscriptionsByUserId)
 
 export default router

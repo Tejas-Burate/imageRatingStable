@@ -6,6 +6,7 @@ const subscriptionPlanSchema = new mongoose.Schema(
         planName: { type: String, required: true },
         price: { type: Number, required: true },
         duration: { type: Number, required: true },
+        quizAllowed: { type: Number, required: false },
         benefits: [{ type: String, required: true }]
     },
     { timestamps: true }

@@ -15,7 +15,7 @@ const sessionModel_1 = __importDefault(require("../../api/session/sessionModel")
 const settingModel_1 = __importDefault(require("../../api/setting/settingModel"));
 const userQuestionMappingModel_1 = __importDefault(require("../../api/userQuestionMapping/userQuestionMappingModel"));
 const createSession = (userId, categoryId) => __awaiter(void 0, void 0, void 0, function* () {
-    const session = yield sessionModel_1.default.create({ userId, categoryId, questionCount: 0 });
+    const session = yield sessionModel_1.default.create({ userId, categoryId, questionCount: 0, sessionStatus: "Running" });
     return session;
 });
 const updateSession = (sessionId) => __awaiter(void 0, void 0, void 0, function* () {
@@ -43,6 +43,11 @@ const verifyGivenQuestionLimit = (sessionId) => __awaiter(void 0, void 0, void 0
     const points = yield settingModel_1.default.find();
     const userQuestions = yield userQuestionMappingModel_1.default.find({ sessionId: sessionId });
     if (userQuestions.length >= points[0].noOfQuizQuestions) {
+        const session = yield sessionModel_1.default.findById(sessionId);
+        if (session) {
+            session.sessionStatus = "Completed";
+            yield session.save();
+        }
         return false;
     }
     else {

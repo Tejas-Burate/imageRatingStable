@@ -24,10 +24,12 @@ const authModel_1 = __importDefault(require("../../auth/authModel"));
 const xlsx_1 = __importDefault(require("xlsx"));
 const sessionModel_1 = __importDefault(require("../session/sessionModel"));
 const quizModel_1 = __importDefault(require("../quiz/quizModel"));
+const subscription_1 = __importDefault(require("../../../shared/utils/subscription"));
 const { ObjectId } = mongoose_1.default.Types;
 const { createUserQuizQuestionMapping, getActiveQuizSessionBySessionId, getPointsBySessionId, } = userQuizQuestion_1.default;
 const { getCompetitionTotalQuestionsCount, getCompetitionQuestionsTime } = setting_1.default;
 const { createSession, updateSession, getActiveSession, getActiveSessionBySessionId, getCurrentQuestionNoBySessions, } = competitionSession_1.default;
+const { competitionQuizPlanExpired, isCompetitionQuizSubscription } = subscription_1.default;
 const createQuizQuestion = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const authHeader = req.headers.authorization;
@@ -262,6 +264,82 @@ const deleteQuestionById = (req, res) => __awaiter(void 0, void 0, void 0, funct
     }
 });
 exports.deleteQuestionById = deleteQuestionById;
+// const getFiveByQuestionByQuizId = async (req: Request, res: Response) => {
+//     try {
+//         const { userId, quizId } = req.body;
+//         if (!quizId || !userId) {
+//             return res
+//                 .status(400)
+//                 .json({ status: false, message: "Missing required parameters." });
+//         }
+//         const user = await authModel.findById(userId);
+//         if (!user) {
+//             return res
+//                 .status(404)
+//                 .json({ status: false, message: `User with ID ${userId} is not found.` });
+//         }
+//         const quizIsGiven = await sessionModel.findOne({ userId: userId, quizId: quizId });
+//         if (quizIsGiven) {
+//             return res.status(401).json({ status: false, message: "You have already given this quiz" });
+//         }
+//         const startOfDay = new Date();
+//         startOfDay.setHours(0, 0, 0, 0);
+//         const endOfDay = new Date();
+//         endOfDay.setHours(23, 59, 59, 999);
+//         const allQuestions = await questionModel.find({ quizId })
+//             .populate({ path: "quizId", select: "_id quizName" });
+//         if (allQuestions.length === 0) {
+//             return res.status(404).json({
+//                 status: false,
+//                 message: `No questions found for category ID ${quizId}.`,
+//             });
+//         }
+//         const questionsWithOptionValues = allQuestions.map((question) => {
+//             const optionListWithIds = question.optionList.map((option) => ({
+//                 optionValue: option.optionValue,
+//                 _id: option._id,
+//             }));
+//             return {
+//                 ...question.toObject(), // Convert Mongoose document to plain object
+//                 optionList: optionListWithIds, // Replace optionList with optionValue and _id
+//             };
+//         });
+//         const answeredQuestions = await userQuizCompetitionModel.find({ userId, quizId }).select("questionId status");
+//         const answeredQuestionIds = answeredQuestions.map(q => q.questionId.toString());
+//         const notYetPresented = questionsWithOptionValues.filter(q => !answeredQuestionIds.includes(q._id.toString()));
+//         const unAttempted = answeredQuestions.filter(q => q.status === "UnAttempted").map(q => q.questionId.toString());
+//         const wronglyAnswered = answeredQuestions.filter(q => q.status === "WronglyAnswered").map(q => q.questionId.toString());
+//         const correctlyAnswered = answeredQuestions.filter(q => q.status === "CorrectlyAnswered").map(q => q.questionId.toString());
+//         let prioritizedQuestions = notYetPresented.length > 0 ? notYetPresented
+//             : unAttempted.length > 0 ? questionsWithOptionValues.filter(q => unAttempted.includes(q._id.toString()))
+//                 : wronglyAnswered.length > 0 ? questionsWithOptionValues.filter(q => wronglyAnswered.includes(q._id.toString()))
+//                     : questionsWithOptionValues.filter(q => correctlyAnswered.includes(q._id.toString()));
+//         if (prioritizedQuestions.length === 0) {
+//             return res.status(404).json({
+//                 status: false,
+//                 message: "No new questions available for this category.",
+//             });
+//         }
+//         const randomIndex = Math.floor(Math.random() * prioritizedQuestions.length);
+//         const selectedQuestion = prioritizedQuestions[randomIndex];
+//         const activeSession = await createSession(userId, quizId);
+//         return res.status(200).json({
+//             status: true,
+//             message: "Question data fetched successfully.",
+//             sessionId: activeSession,
+//             data: selectedQuestion,
+//             questionNumber: activeSession.questionCount + 1,
+//             totalQuestions: await getCompetitionTotalQuestionsCount(),
+//             questionTime: await getCompetitionQuestionsTime(),
+//         });
+//     } catch (error: any) {
+//         console.log("error", error);
+//         res.status(500).json({
+//             status: false,
+//             message: error.message || "Internal server error",
+//         });
+//     }
+// };
 const getFiveByQuestionByQuizId = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { userId, quizId } = req.body;
@@ -279,6 +357,12 @@ const getFiveByQuestionByQuizId = (req, res) => __awaiter(void 0, void 0, void 0
         const quizIsGiven = yield sessionModel_1.default.findOne({ userId: userId, quizId: quizId });
         if (quizIsGiven) {
             return res.status(401).json({ status: false, message: "You have already given this quiz" });
+        }
+        if (!(yield isCompetitionQuizSubscription(userId))) {
+            return res.status(401).json({ status: false, message: "Please buy subscription before starting quiz competition.." });
+        }
+        if (yield competitionQuizPlanExpired(userId)) {
+            return res.status(401).json({ status: false, message: "Your subscription is expired, please renew your competition quiz subscription" });
         }
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
@@ -340,11 +424,7 @@ exports.getFiveByQuestionByQuizId = getFiveByQuestionByQuizId;
 const getNextQuestionByQuizId = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         let { userId, questionId, quizId, difficultyLevel, timeTaken, sessionId, isCorrect, } = req.body;
-        if (!quizId ||
-            !difficultyLevel ||
-            !userId ||
-            !questionId ||
-            !sessionId) {
+        if (!quizId || !difficultyLevel || !userId || !questionId || !sessionId) {
             return res
                 .status(400)
                 .json({ status: false, message: "Missing required parameters." });
@@ -365,16 +445,19 @@ const getNextQuestionByQuizId = (req, res) => __awaiter(void 0, void 0, void 0, 
         if (questions.length === 0) {
             return res.status(404).json({
                 status: false,
-                message: `No questions found for category ID ${quizId} at difficulty level ${difficultyLevel}`,
+                message: `No questions found for quiz ID ${quizId} at difficulty level ${difficultyLevel}`,
             });
         }
         const answeredQuestions = yield userQuizCompetitionQuestionModel_1.default
             .find({ userId, quizId })
-            .select("questionId status");
+            .select("questionId status sessionId");
         const answeredQuestionIds = answeredQuestions.map((q) => ({
             id: q.questionId.toString(),
             status: q.status,
+            sessionId: q.sessionId
         }));
+        // Get all questions presented in this session
+        const presentedQuestionsInSession = answeredQuestionIds.filter(q => q.sessionId === sessionId).map(q => q.id);
         const questionsWithOptionValues = questions.map((question) => {
             const optionListWithIds = question.optionList.map((option) => ({
                 optionValue: option.optionValue,
@@ -382,27 +465,27 @@ const getNextQuestionByQuizId = (req, res) => __awaiter(void 0, void 0, void 0, 
             }));
             return Object.assign(Object.assign({}, question.toObject()), { optionList: optionListWithIds, _id: question._id });
         });
-        // Filter questions based on priorities
+        // Filter questions based on priorities and session presentation
         const notPresented = questionsWithOptionValues.filter((q) => !answeredQuestionIds.some((a) => a.id === q._id.toString()));
         const unattempted = questionsWithOptionValues.filter((q) => answeredQuestionIds.some((a) => a.id === q._id.toString() && a.status === "UnAttempted"));
         const wronglyAnswered = questionsWithOptionValues.filter((q) => answeredQuestionIds.some((a) => a.id === q._id.toString() && a.status === "WronglyAnswered"));
         const correctlyAnswered = questionsWithOptionValues.filter((q) => answeredQuestionIds.some((a) => a.id === q._id.toString() && a.status === "CorrectlyAnswered"));
         let prioritizedQuestions = [
-            ...notPresented,
-            ...(notPresented.length === 0 ? unattempted : []),
+            ...notPresented.filter(q => !presentedQuestionsInSession.includes(q._id.toString())),
+            ...(notPresented.length === 0 ? unattempted : []).filter(q => !presentedQuestionsInSession.includes(q._id.toString())),
             ...(notPresented.length === 0 && unattempted.length === 0
                 ? wronglyAnswered
-                : []),
+                : []).filter(q => !presentedQuestionsInSession.includes(q._id.toString())),
             ...(notPresented.length === 0 &&
                 unattempted.length === 0 &&
                 wronglyAnswered.length === 0
                 ? correctlyAnswered
-                : []),
+                : []).filter(q => !presentedQuestionsInSession.includes(q._id.toString())),
         ];
         if (prioritizedQuestions.length === 0) {
             return res.status(404).json({
                 status: false,
-                message: "No new questions available for this category.",
+                message: "No new questions available for this quiz.",
             });
         }
         const randomIndex = Math.floor(Math.random() * prioritizedQuestions.length);

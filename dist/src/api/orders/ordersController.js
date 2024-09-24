@@ -16,6 +16,7 @@ exports.verifyPayment = exports.createOrders = exports.getAllOrders = void 0;
 const ordersModel_1 = __importDefault(require("./ordersModel"));
 const razorpay_1 = __importDefault(require("../../shared/utils/razorpay"));
 const userSubscriptionsModel_1 = __importDefault(require("../subscriptions/userSubscriptions/userSubscriptionsModel"));
+const subscriptionTypeModel_1 = __importDefault(require("../subscriptions/subscriptionType/subscriptionTypeModel"));
 const { createOrder, verifyPaymentSignature } = razorpay_1.default;
 const getAllOrders = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -36,7 +37,7 @@ const createOrders = (req, res) => __awaiter(void 0, void 0, void 0, function* (
         const { userId, planId, typeId, amount } = req.body;
         const rzpOrderResp = yield createOrder(amount);
         const order = yield ordersModel_1.default.create({
-            userId: userId, planId: planId, rzpResponseData: {
+            userId: userId, planId: planId, typeId: typeId, rzpResponseData: {
                 razorpay_order_id: rzpOrderResp.id
             }, orderStatus: rzpOrderResp.status, amount: rzpOrderResp.amount, currency: rzpOrderResp.currency, paymentStatus: "pending"
         });
@@ -58,7 +59,8 @@ const verifyPayment = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         if (!isVerified) {
             return res.status(400).json({ status: false, message: "Invalid payment signature." });
         }
-        const order = yield ordersModel_1.default.findOneAndUpdate({ "rzpResponseData.razorpay_order_id": razorpay_order_id }, { paymentStatus: "paid", "rzpResponseData.razorpay_payment_id": razorpay_payment_id, "rzpResponseData.razorpay_signature": razorpay_signature }, { new: true }).populate("planId");
+        const order = yield ordersModel_1.default.findOneAndUpdate({ "rzpResponseData.razorpay_order_id": razorpay_order_id }, { paymentStatus: "paid", "rzpResponseData.razorpay_payment_id": razorpay_payment_id, "rzpResponseData.razorpay_signature": razorpay_signature }, { new: true }).populate("planId typeId");
+        const subscriptions = yield subscriptionTypeModel_1.default.findById(order.typeId);
         if (!order) {
             return res.status(400).json({ status: false, message: "Failed to update order status." });
         }
@@ -69,6 +71,7 @@ const verifyPayment = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             userId: order.userId,
             planId: order.planId,
             typeId: order.typeId,
+            subscriptionType: subscriptions.subscriptionType,
             startDate: startDate,
             endDate: endDate,
             status: 'active',

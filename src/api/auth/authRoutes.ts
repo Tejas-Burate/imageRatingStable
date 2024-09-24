@@ -8,7 +8,8 @@ import {
     checkUser,
     getAuthFilters,
     googleAuthLogAndRegister,
-    updateUserCountry
+    updateUserCountry,
+    checkUserActiveSession
 } from "./authController";
 
 const router = express.Router();
@@ -200,6 +201,7 @@ router.post("/googleAuthLogAndRegister", googleAuthLogAndRegister);
 router.get("/getAllAuth", getAllAuth);
 router.get("/getAuthById/:id", getAuthById);
 router.get("/checkUser/:id", checkUser);
+router.get("/checkUserActiveSession/:id", checkUserActiveSession);
 router.post("/getAuthFilters", getAuthFilters);
 router.put("/updateAuthById/:id", updateAuthById);
 router.get("/updateUserCountry/:id", updateUserCountry);

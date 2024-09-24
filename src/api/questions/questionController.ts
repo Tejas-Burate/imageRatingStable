@@ -27,7 +27,7 @@ const {
     getPointsBySessionId,
     checkAvailableQuestion,
 } = userQuestion;
-const { planExpired } = subscription;
+const { generalQuizPlanExpired, isGeneralQuizSubscription } = subscription;
 
 
 const createQuestion = async (req: Request, res: Response) => {
@@ -305,38 +305,209 @@ const deleteQuestionById = async (req: Request, res: Response) => {
 };
 
 
+// const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
+//     try {
+//         const { userId, categoryId } = req.body;
+
+//         if (!categoryId || !userId) {
+//             return res
+//                 .status(400)
+//                 .json({ status: false, message: "Missing required parameters." });
+//         }
+
+//         const user = await authModel.findById(userId);
+//         if (!user) {
+//             return res
+//                 .status(404)
+//                 .json({ status: false, message: `User with ID ${userId} is not found.` });
+//         }
+
+//         const startOfDay = new Date();
+//         startOfDay.setHours(0, 0, 0, 0);
+//         const endOfDay = new Date();
+//         endOfDay.setHours(23, 59, 59, 999);
+
+//         if (user.subscription === true) {
+//             // For subscribed users, apply question prioritization logic
+//             const allQuestions = await questionModel.find({ categoryId })
+//                 .populate({ path: "categoryId", select: "_id categoryName" });
+
+//             if (allQuestions.length === 0) {
+//                 return res.status(404).json({
+//                     status: false,
+//                     message: `No questions found for category ID ${categoryId}.`,
+//                 });
+//             }
+
+//             const questionsWithOptionValues = allQuestions.map((question) => {
+//                 const optionListWithIds = question.optionList.map((option) => ({
+//                     optionValue: option.optionValue,
+//                     _id: option._id,
+//                 }));
+
+//                 return {
+//                     ...question.toObject(), // Convert Mongoose document to plain object
+//                     optionList: optionListWithIds, // Replace optionList with optionValue and _id
+//                 };
+//             });
+
+
+//             const answeredQuestions = await userQuestionMappingModel.find({ userId, categoryId }).select("questionId status");
+//             const answeredQuestionIds = answeredQuestions.map(q => q.questionId.toString());
+
+//             const notYetPresented = questionsWithOptionValues.filter(q => !answeredQuestionIds.includes(q._id.toString()));
+//             const unAttempted = answeredQuestions.filter(q => q.status === "UnAttempted").map(q => q.questionId.toString());
+//             const wronglyAnswered = answeredQuestions.filter(q => q.status === "WronglyAnswered").map(q => q.questionId.toString());
+//             const correctlyAnswered = answeredQuestions.filter(q => q.status === "CorrectlyAnswered").map(q => q.questionId.toString());
+
+//             let prioritizedQuestions = notYetPresented.length > 0 ? notYetPresented
+//                 : unAttempted.length > 0 ? questionsWithOptionValues.filter(q => unAttempted.includes(q._id.toString()))
+//                     : wronglyAnswered.length > 0 ? questionsWithOptionValues.filter(q => wronglyAnswered.includes(q._id.toString()))
+//                         : questionsWithOptionValues.filter(q => correctlyAnswered.includes(q._id.toString()));
+
+//             if (prioritizedQuestions.length === 0) {
+//                 return res.status(404).json({
+//                     status: false,
+//                     message: "No new questions available for this category.",
+//                 });
+//             }
+
+//             const randomIndex = Math.floor(Math.random() * prioritizedQuestions.length);
+//             const selectedQuestion = prioritizedQuestions[randomIndex];
+
+//             const activeSession = await createSession(userId, categoryId);
+
+//             return res.status(200).json({
+//                 status: true,
+//                 message: "Question data fetched successfully.",
+//                 sessionId: activeSession,
+//                 data: selectedQuestion,
+//                 questionNumber: activeSession.questionCount + 1,
+//                 totalQuestions: await getTotalQuestionsCount(),
+//                 questionTime: await getQuestionsTime(),
+//             });
+//         } else {
+//             const todayQuestions = await userQuestionMappingModel.find({
+//                 userId,
+//                 createdAt: { $gte: startOfDay, $lt: endOfDay }
+//             }).sort({ createdAt: -1 }).exec();
+
+//             if (todayQuestions.length >= 10) {
+//                 return res.status(403).json({
+//                     status: false,
+//                     message: "You have reached the daily limit of 10 questions for non-subscribed users."
+//                 });
+//             }
+
+//             const allQuestions = await questionModel.find({ categoryId })
+//                 .populate({ path: "categoryId", select: "_id categoryName" });
+
+//             if (allQuestions.length === 0) {
+//                 return res.status(404).json({
+//                     status: false,
+//                     message: `No questions found for category ID ${categoryId}.`,
+//                 });
+//             }
+
+//             const questionsWithOptionValues = allQuestions.map((question) => {
+//                 const optionListWithIds = question.optionList.map((option) => ({
+//                     optionValue: option.optionValue,
+//                     _id: option._id,
+//                 }));
+
+//                 return {
+//                     ...question.toObject(), // Convert Mongoose document to plain object
+//                     optionList: optionListWithIds, // Replace optionList with optionValue and _id
+//                 };
+//             });
+
+//             const answeredQuestions = await userQuestionMappingModel.find({ userId, categoryId }).select("questionId status");
+//             const answeredQuestionIds = answeredQuestions.map(q => q.questionId.toString());
+
+//             const notYetPresented = questionsWithOptionValues.filter(q => !answeredQuestionIds.includes(q._id.toString()));
+//             const unAttempted = answeredQuestions.filter(q => q.status === "UnAttempted").map(q => q.questionId.toString());
+//             const wronglyAnswered = answeredQuestions.filter(q => q.status === "WronglyAnswered").map(q => q.questionId.toString());
+
+//             let prioritizedQuestions = notYetPresented.length > 0 ? notYetPresented
+//                 : unAttempted.length > 0 ? questionsWithOptionValues.filter(q => unAttempted.includes(q._id.toString()))
+//                     : wronglyAnswered.length > 0 ? questionsWithOptionValues.filter(q => wronglyAnswered.includes(q._id.toString()))
+//                         : [];
+
+//             if (prioritizedQuestions.length === 0) {
+//                 return res.status(404).json({
+//                     status: false,
+//                     message: "No new questions available for this category.",
+//                 });
+//             }
+
+//             const randomIndex = Math.floor(Math.random() * prioritizedQuestions.length);
+//             const selectedQuestion = prioritizedQuestions[randomIndex];
+
+//             const activeSession = await createSession(userId, categoryId);
+
+//             return res.status(200).json({
+//                 status: true,
+//                 message: "Question data fetched successfully.",
+//                 sessionId: activeSession,
+//                 data: selectedQuestion,
+//                 questionNumber: activeSession.questionCount + 1,
+//                 totalQuestions: await getTotalQuestionsCount(),
+//                 questionTime: await getQuestionsTime(),
+//             });
+//         }
+//     } catch (error: any) {
+//         console.log("error", error);
+//         res.status(500).json({
+//             status: false,
+//             message: error.message || "Internal server error",
+//         });
+//     }
+// };
+
 const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
     try {
         const { userId, categoryId } = req.body;
 
         if (!categoryId || !userId) {
-            return res
-                .status(400)
-                .json({ status: false, message: "Missing required parameters." });
+            return res.status(400).json({ status: false, message: "Missing required parameters." });
         }
 
         const user = await authModel.findById(userId);
         if (!user) {
-            return res
-                .status(404)
-                .json({ status: false, message: `User with ID ${userId} is not found.` });
+            return res.status(404).json({ status: false, message: `User with ID ${userId} is not found.` });
         }
+
+        const category = await questionCategoryModel.findById(categoryId);
+        if (!category) {
+            return res.status(404).json({ status: false, message: `Category with ID ${categoryId} not found.` });
+        }
+
+        const categoryName: any = category.categoryName;
 
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date();
         endOfDay.setHours(23, 59, 59, 999);
 
-        if (user.subscription === true) {
-            // For subscribed users, apply question prioritization logic
-            const allQuestions = await questionModel.find({ categoryId })
-                .populate({ path: "categoryId", select: "_id categoryName" });
+        const categoriesWithCountryFilter = ["Geography", "Sports", "History", "Arts"];
+
+        let questionQuery: any = { categoryId };
+
+        // Add country filter if the category is one of the specified categories
+        if (categoriesWithCountryFilter.includes(categoryName)) {
+            questionQuery.country = user.country;
+        }
+
+        if (await isGeneralQuizSubscription(userId)) {
+
+            if (await generalQuizPlanExpired(userId)) {
+                return res.status(400).json({ status: false, message: "Your general quiz plan has expired. Please renew your subscription." });
+            }
+
+            const allQuestions = await questionModel.find(questionQuery).populate({ path: "categoryId", select: "_id categoryName" });
 
             if (allQuestions.length === 0) {
-                return res.status(404).json({
-                    status: false,
-                    message: `No questions found for category ID ${categoryId}.`,
-                });
+                return res.status(404).json({ status: false, message: `No questions found for category ID ${categoryId}.` });
             }
 
             const questionsWithOptionValues = allQuestions.map((question) => {
@@ -344,13 +515,8 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
                     optionValue: option.optionValue,
                     _id: option._id,
                 }));
-
-                return {
-                    ...question.toObject(), // Convert Mongoose document to plain object
-                    optionList: optionListWithIds, // Replace optionList with optionValue and _id
-                };
+                return { ...question.toObject(), optionList: optionListWithIds };
             });
-
 
             const answeredQuestions = await userQuestionMappingModel.find({ userId, categoryId }).select("questionId status");
             const answeredQuestionIds = answeredQuestions.map(q => q.questionId.toString());
@@ -366,10 +532,7 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
                         : questionsWithOptionValues.filter(q => correctlyAnswered.includes(q._id.toString()));
 
             if (prioritizedQuestions.length === 0) {
-                return res.status(404).json({
-                    status: false,
-                    message: "No new questions available for this category.",
-                });
+                return res.status(404).json({ status: false, message: "No new questions available for this category." });
             }
 
             const randomIndex = Math.floor(Math.random() * prioritizedQuestions.length);
@@ -392,21 +555,14 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
                 createdAt: { $gte: startOfDay, $lt: endOfDay }
             }).sort({ createdAt: -1 }).exec();
 
-            if (todayQuestions.length >= 10) {
-                return res.status(403).json({
-                    status: false,
-                    message: "You have reached the daily limit of 10 questions for non-subscribed users."
-                });
+            if (todayQuestions.length >= 15) {
+                return res.status(403).json({ status: false, message: "You have reached the daily limit of 10 questions for non-subscribed users." });
             }
 
-            const allQuestions = await questionModel.find({ categoryId })
-                .populate({ path: "categoryId", select: "_id categoryName" });
+            const allQuestions = await questionModel.find(questionQuery).populate({ path: "categoryId", select: "_id categoryName" });
 
             if (allQuestions.length === 0) {
-                return res.status(404).json({
-                    status: false,
-                    message: `No questions found for category ID ${categoryId}.`,
-                });
+                return res.status(404).json({ status: false, message: `No questions found for category ID ${categoryId}.` });
             }
 
             const questionsWithOptionValues = allQuestions.map((question) => {
@@ -414,11 +570,7 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
                     optionValue: option.optionValue,
                     _id: option._id,
                 }));
-
-                return {
-                    ...question.toObject(), // Convert Mongoose document to plain object
-                    optionList: optionListWithIds, // Replace optionList with optionValue and _id
-                };
+                return { ...question.toObject(), optionList: optionListWithIds };
             });
 
             const answeredQuestions = await userQuestionMappingModel.find({ userId, categoryId }).select("questionId status");
@@ -434,10 +586,7 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
                         : [];
 
             if (prioritizedQuestions.length === 0) {
-                return res.status(404).json({
-                    status: false,
-                    message: "No new questions available for this category.",
-                });
+                return res.status(404).json({ status: false, message: "No new questions available for this category." });
             }
 
             const randomIndex = Math.floor(Math.random() * prioritizedQuestions.length);
@@ -457,10 +606,7 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
         }
     } catch (error: any) {
         console.log("error", error);
-        res.status(500).json({
-            status: false,
-            message: error.message || "Internal server error",
-        });
+        res.status(500).json({ status: false, message: error.message || "Internal server error" });
     }
 };
 
@@ -476,25 +622,18 @@ const getNextQuestionByCategoryId = async (req: Request, res: Response) => {
             isCorrect,
         } = req.body;
 
-        if (
-            !categoryId ||
-            !difficultyLevel ||
-            !userId ||
-            !questionId ||
-            !sessionId
-        ) {
+        if (!categoryId || !difficultyLevel || !userId || !questionId || !sessionId) {
             return res
                 .status(400)
                 .json({ status: false, message: "Missing required parameters." });
         }
 
-        // let session: any = await getActiveSessionBySessionId(sessionId);
-        // if (!session) {
-        //     return res
-        //         .status(400)
-        //         .json({ status: false, message: "User already answered 5 questions" });
-        // }
-        let userQuestionLimit: any = await verifyGivenQuestionLimit(sessionId);
+        let user = await authModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({ status: false, message: `User with ID ${userId} is not found.` });
+        }
+
+        let userQuestionLimit = await verifyGivenQuestionLimit(sessionId);
         if (!userQuestionLimit) {
             return res
                 .status(400)
@@ -505,8 +644,38 @@ const getNextQuestionByCategoryId = async (req: Request, res: Response) => {
             ? Math.min(difficultyLevel + 1, 8)
             : Math.max(difficultyLevel - 1, 1);
 
+        const category = await questionCategoryModel.findById(categoryId);
+        if (!category) {
+            return res.status(404).json({ status: false, message: `Category with ID ${categoryId} not found.` });
+        }
+
+        const categoryName: any = category.categoryName;
+        const categoriesWithCountryFilter = ["Geography", "Sports", "History", "Arts"];
+
+        let questionQuery: any = { categoryId, difficultyLevel };
+
+        // Add country filter if the category is one of the specified categories
+        if (categoriesWithCountryFilter.includes(categoryName)) {
+            questionQuery.country = user.country;
+        }
+
+        // Find answered questions in the current session to exclude them from the next question selection
+        const answeredQuestionsInSession = await userQuestionMappingModel
+            .find({ userId, categoryId, sessionId })
+            .select("questionId status");
+
+        const answeredQuestionIdsInSession = answeredQuestionsInSession.map((q) => ({
+            id: q.questionId.toString(),
+            status: q.status,
+        }));
+
+        const answeredQuestionIds = answeredQuestionIdsInSession.map(q => q.id);
+
+        // Exclude questions that were answered in the current session
+        questionQuery._id = { $nin: answeredQuestionIds };
+
         const questions = await questionModel
-            .find({ categoryId, difficultyLevel })
+            .find(questionQuery)
             .populate({ path: "questionOwner", select: "_id fullName" })
             .populate({ path: "categoryId", select: "_id categoryName" });
 
@@ -521,7 +690,7 @@ const getNextQuestionByCategoryId = async (req: Request, res: Response) => {
             .find({ userId, categoryId })
             .select("questionId status");
 
-        const answeredQuestionIds = answeredQuestions.map((q) => ({
+        const answeredQuestionIdsOverall = answeredQuestions.map((q) => ({
             id: q.questionId.toString(),
             status: q.status,
         }));
@@ -539,23 +708,22 @@ const getNextQuestionByCategoryId = async (req: Request, res: Response) => {
             };
         });
 
-
         // Filter questions based on priorities
         const notPresented = questionsWithOptionValues.filter(
-            (q) => !answeredQuestionIds.some((a) => a.id === q._id.toString())
+            (q) => !answeredQuestionIdsOverall.some((a) => a.id === q._id.toString())
         );
         const unattempted = questionsWithOptionValues.filter((q) =>
-            answeredQuestionIds.some(
+            answeredQuestionIdsOverall.some(
                 (a) => a.id === q._id.toString() && a.status === "UnAttempted"
             )
         );
         const wronglyAnswered = questionsWithOptionValues.filter((q) =>
-            answeredQuestionIds.some(
+            answeredQuestionIdsOverall.some(
                 (a) => a.id === q._id.toString() && a.status === "WronglyAnswered"
             )
         );
         const correctlyAnswered = questionsWithOptionValues.filter((q) =>
-            answeredQuestionIds.some(
+            answeredQuestionIdsOverall.some(
                 (a) => a.id === q._id.toString() && a.status === "CorrectlyAnswered"
             )
         );
@@ -791,7 +959,6 @@ const bulkUploadQuestions = async (req: Request, res: Response) => {
         res.status(500).json({ status: false, message: 'Internal server error', error });
     }
 };
-
 
 const getQuestionsCountByCategory = async (req: Request, res: Response) => {
     try {

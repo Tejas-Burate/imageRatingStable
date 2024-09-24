@@ -14,7 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 const sessionModel_1 = __importDefault(require("../../api/quizCompetition/session/sessionModel"));
 const settingModel_1 = __importDefault(require("../../api/setting/settingModel"));
 const createSession = (userId, quizId) => __awaiter(void 0, void 0, void 0, function* () {
-    const session = yield sessionModel_1.default.create({ userId, quizId, questionCount: 0 });
+    const session = yield sessionModel_1.default.create({ userId, quizId, questionCount: 0, sessionStatus: "Running" });
     return session;
 });
 const updateSession = (sessionId) => __awaiter(void 0, void 0, void 0, function* () {
