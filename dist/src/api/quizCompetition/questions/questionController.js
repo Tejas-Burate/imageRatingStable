@@ -22,13 +22,12 @@ const setting_1 = __importDefault(require("../../../shared/utils/setting"));
 const userQuizCompetitionQuestionModel_1 = __importDefault(require("../userQuizCompetitionQuestion/userQuizCompetitionQuestionModel"));
 const authModel_1 = __importDefault(require("../../auth/authModel"));
 const xlsx_1 = __importDefault(require("xlsx"));
-const sessionModel_1 = __importDefault(require("../session/sessionModel"));
 const quizModel_1 = __importDefault(require("../quiz/quizModel"));
 const subscription_1 = __importDefault(require("../../../shared/utils/subscription"));
 const { ObjectId } = mongoose_1.default.Types;
 const { createUserQuizQuestionMapping, getActiveQuizSessionBySessionId, getPointsBySessionId, } = userQuizQuestion_1.default;
 const { getCompetitionTotalQuestionsCount, getCompetitionQuestionsTime } = setting_1.default;
-const { createSession, updateSession, getActiveSession, getActiveSessionBySessionId, getCurrentQuestionNoBySessions, } = competitionSession_1.default;
+const { createSession, updateSession, hasQuizStarted, getActiveSession, getActiveSessionBySessionId, getCurrentQuestionNoBySessions, } = competitionSession_1.default;
 const { competitionQuizPlanExpired, isCompetitionQuizSubscription } = subscription_1.default;
 const createQuizQuestion = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -98,17 +97,20 @@ const getCompetitionQuestionsFilters = (req, res) => __awaiter(void 0, void 0, v
                 { orgImgUrl: searchRegex },
                 { compImgUrl: searchRegex },
                 { country: searchRegex },
+                { "optionList.optionValue": searchRegex },
             ];
         }
         if (quizName) {
             const categories = yield quizModel_1.default.find({
-                quizName: new RegExp(quizName, "i")
+                quizName: new RegExp(quizName, "i"),
             });
             if (categories.length > 0) {
-                filter.quizId = { $in: categories.map(c => c._id) };
+                filter.quizId = { $in: categories.map((c) => c._id) };
             }
             else {
-                return res.status(404).json({ status: false, message: "No matching categories found" });
+                return res
+                    .status(404)
+                    .json({ status: false, message: "No matching categories found" });
             }
         }
         if (question) {
@@ -122,27 +124,32 @@ const getCompetitionQuestionsFilters = (req, res) => __awaiter(void 0, void 0, v
         }
         if (questionCreator) {
             const creators = yield authModel_1.default.find({
-                fullName: new RegExp(questionCreator, "i")
+                fullName: new RegExp(questionCreator, "i"),
             });
             if (creators.length > 0) {
-                filter.questionCreator = { $in: creators.map(c => c._id) };
+                filter.questionCreator = { $in: creators.map((c) => c._id) };
             }
             else {
-                return res.status(404).json({ status: false, message: "No matching creators found" });
+                return res
+                    .status(404)
+                    .json({ status: false, message: "No matching creators found" });
             }
         }
         if (questionOwner) {
             const owners = yield authModel_1.default.find({
-                fullName: new RegExp(questionOwner, "i")
+                fullName: new RegExp(questionOwner, "i"),
             });
             if (owners.length > 0) {
-                filter.questionOwner = { $in: owners.map(o => o._id) };
+                filter.questionOwner = { $in: owners.map((o) => o._id) };
             }
             else {
-                return res.status(404).json({ status: false, message: "No matching owners found" });
+                return res
+                    .status(404)
+                    .json({ status: false, message: "No matching owners found" });
             }
         }
-        const questions = yield questionModel_1.default.find(filter)
+        const questions = yield questionModel_1.default
+            .find(filter)
             .skip(parseInt(start))
             .limit(parseInt(limit))
             .populate("quizId questionCreator questionOwner");
@@ -159,7 +166,9 @@ const getCompetitionQuestionsFilters = (req, res) => __awaiter(void 0, void 0, v
     }
     catch (error) {
         console.error("Error fetching questions:", error);
-        res.status(500).json({ status: false, error: "Internal server error", message: error });
+        res
+            .status(500)
+            .json({ status: false, error: "Internal server error", message: error });
     }
 });
 exports.getCompetitionQuestionsFilters = getCompetitionQuestionsFilters;
@@ -352,23 +361,58 @@ const getFiveByQuestionByQuizId = (req, res) => __awaiter(void 0, void 0, void 0
         if (!user) {
             return res
                 .status(404)
-                .json({ status: false, message: `User with ID ${userId} is not found.` });
+                .json({
+                status: false,
+                message: `User with ID ${userId} is not found.`,
+            });
         }
-        const quizIsGiven = yield sessionModel_1.default.findOne({ userId: userId, quizId: quizId });
-        if (quizIsGiven) {
-            return res.status(401).json({ status: false, message: "You have already given this quiz" });
+        const quiz = yield quizModel_1.default.findById(quizId);
+        if (!quiz) {
+            return res
+                .status(404)
+                .json({
+                status: false,
+                message: `Quiz with ID ${quizId} is not found.`,
+            });
         }
+        // const isQuizStarted = await hasQuizStarted(quizId);
+        // if (isQuizStarted) {
+        //     return res
+        //         .status(403)
+        //         .json({ status: false, message: "Quiz has not started yet." });
+        // }
+        // const quizIsGiven = await sessionModel.findOne({
+        //     userId: userId,
+        //     quizId: quizId,
+        //     sessionStatus: "Completed"
+        // });
+        // if (quizIsGiven) {
+        //     return res
+        //         .status(401)
+        //         .json({ status: false, message: "You have already given this quiz" });
+        // }
         if (!(yield isCompetitionQuizSubscription(userId))) {
-            return res.status(401).json({ status: false, message: "Please buy subscription before starting quiz competition.." });
+            return res
+                .status(401)
+                .json({
+                status: false,
+                message: "Please buy subscription before starting quiz competition..",
+            });
         }
         if (yield competitionQuizPlanExpired(userId)) {
-            return res.status(401).json({ status: false, message: "Your subscription is expired, please renew your competition quiz subscription" });
+            return res
+                .status(401)
+                .json({
+                status: false,
+                message: "Your subscription is expired, please renew your competition quiz subscription",
+            });
         }
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date();
         endOfDay.setHours(23, 59, 59, 999);
-        const allQuestions = yield questionModel_1.default.find({ quizId })
+        const allQuestions = yield questionModel_1.default
+            .find({ quizId })
             .populate({ path: "quizId", select: "_id quizName" });
         if (allQuestions.length === 0) {
             return res.status(404).json({
@@ -383,16 +427,27 @@ const getFiveByQuestionByQuizId = (req, res) => __awaiter(void 0, void 0, void 0
             }));
             return Object.assign(Object.assign({}, question.toObject()), { optionList: optionListWithIds });
         });
-        const answeredQuestions = yield userQuizCompetitionQuestionModel_1.default.find({ userId, quizId }).select("questionId status");
-        const answeredQuestionIds = answeredQuestions.map(q => q.questionId.toString());
-        const notYetPresented = questionsWithOptionValues.filter(q => !answeredQuestionIds.includes(q._id.toString()));
-        const unAttempted = answeredQuestions.filter(q => q.status === "UnAttempted").map(q => q.questionId.toString());
-        const wronglyAnswered = answeredQuestions.filter(q => q.status === "WronglyAnswered").map(q => q.questionId.toString());
-        const correctlyAnswered = answeredQuestions.filter(q => q.status === "CorrectlyAnswered").map(q => q.questionId.toString());
-        let prioritizedQuestions = notYetPresented.length > 0 ? notYetPresented
-            : unAttempted.length > 0 ? questionsWithOptionValues.filter(q => unAttempted.includes(q._id.toString()))
-                : wronglyAnswered.length > 0 ? questionsWithOptionValues.filter(q => wronglyAnswered.includes(q._id.toString()))
-                    : questionsWithOptionValues.filter(q => correctlyAnswered.includes(q._id.toString()));
+        const answeredQuestions = yield userQuizCompetitionQuestionModel_1.default
+            .find({ userId, quizId })
+            .select("questionId status");
+        const answeredQuestionIds = answeredQuestions.map((q) => q.questionId.toString());
+        const notYetPresented = questionsWithOptionValues.filter((q) => !answeredQuestionIds.includes(q._id.toString()));
+        const unAttempted = answeredQuestions
+            .filter((q) => q.status === "UnAttempted")
+            .map((q) => q.questionId.toString());
+        const wronglyAnswered = answeredQuestions
+            .filter((q) => q.status === "WronglyAnswered")
+            .map((q) => q.questionId.toString());
+        const correctlyAnswered = answeredQuestions
+            .filter((q) => q.status === "CorrectlyAnswered")
+            .map((q) => q.questionId.toString());
+        let prioritizedQuestions = notYetPresented.length > 0
+            ? notYetPresented
+            : unAttempted.length > 0
+                ? questionsWithOptionValues.filter((q) => unAttempted.includes(q._id.toString()))
+                : wronglyAnswered.length > 0
+                    ? questionsWithOptionValues.filter((q) => wronglyAnswered.includes(q._id.toString()))
+                    : questionsWithOptionValues.filter((q) => correctlyAnswered.includes(q._id.toString()));
         if (prioritizedQuestions.length === 0) {
             return res.status(404).json({
                 status: false,
@@ -454,10 +509,11 @@ const getNextQuestionByQuizId = (req, res) => __awaiter(void 0, void 0, void 0, 
         const answeredQuestionIds = answeredQuestions.map((q) => ({
             id: q.questionId.toString(),
             status: q.status,
-            sessionId: q.sessionId
+            sessionId: q.sessionId,
         }));
-        // Get all questions presented in this session
-        const presentedQuestionsInSession = answeredQuestionIds.filter(q => q.sessionId === sessionId).map(q => q.id);
+        const presentedQuestionsInSession = answeredQuestionIds
+            .filter((q) => q.sessionId === sessionId)
+            .map((q) => q.id);
         const questionsWithOptionValues = questions.map((question) => {
             const optionListWithIds = question.optionList.map((option) => ({
                 optionValue: option.optionValue,
@@ -471,16 +527,16 @@ const getNextQuestionByQuizId = (req, res) => __awaiter(void 0, void 0, void 0, 
         const wronglyAnswered = questionsWithOptionValues.filter((q) => answeredQuestionIds.some((a) => a.id === q._id.toString() && a.status === "WronglyAnswered"));
         const correctlyAnswered = questionsWithOptionValues.filter((q) => answeredQuestionIds.some((a) => a.id === q._id.toString() && a.status === "CorrectlyAnswered"));
         let prioritizedQuestions = [
-            ...notPresented.filter(q => !presentedQuestionsInSession.includes(q._id.toString())),
-            ...(notPresented.length === 0 ? unattempted : []).filter(q => !presentedQuestionsInSession.includes(q._id.toString())),
+            ...notPresented.filter((q) => !presentedQuestionsInSession.includes(q._id.toString())),
+            ...(notPresented.length === 0 ? unattempted : []).filter((q) => !presentedQuestionsInSession.includes(q._id.toString())),
             ...(notPresented.length === 0 && unattempted.length === 0
                 ? wronglyAnswered
-                : []).filter(q => !presentedQuestionsInSession.includes(q._id.toString())),
+                : []).filter((q) => !presentedQuestionsInSession.includes(q._id.toString())),
             ...(notPresented.length === 0 &&
                 unattempted.length === 0 &&
                 wronglyAnswered.length === 0
                 ? correctlyAnswered
-                : []).filter(q => !presentedQuestionsInSession.includes(q._id.toString())),
+                : []).filter((q) => !presentedQuestionsInSession.includes(q._id.toString())),
         ];
         if (prioritizedQuestions.length === 0) {
             return res.status(404).json({
@@ -504,7 +560,7 @@ const getNextQuestionByQuizId = (req, res) => __awaiter(void 0, void 0, void 0, 
         res.status(500).json({
             status: false,
             message: "An error occurred while fetching the next question.",
-            error: error
+            error: error,
         });
     }
 });
@@ -566,7 +622,9 @@ const bulkUploadCompetitionQuestions = (req, res) => __awaiter(void 0, void 0, v
         const file = req.file;
         const quizId = req.query.quizId;
         if (!file) {
-            return res.status(400).json({ status: false, message: 'No file uploaded' });
+            return res
+                .status(400)
+                .json({ status: false, message: "No file uploaded" });
         }
         if (!quizId) {
             return res.status(400).json({
@@ -574,7 +632,7 @@ const bulkUploadCompetitionQuestions = (req, res) => __awaiter(void 0, void 0, v
                 message: "QuizId is required",
             });
         }
-        const workbook = xlsx_1.default.read(file.buffer, { type: 'buffer' });
+        const workbook = xlsx_1.default.read(file.buffer, { type: "buffer" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const data = xlsx_1.default.utils.sheet_to_json(worksheet);
@@ -585,7 +643,7 @@ const bulkUploadCompetitionQuestions = (req, res) => __awaiter(void 0, void 0, v
             for (let i = 0; i < 5; i++) {
                 const optionValue = item[`optionList[${i}].optionValue`];
                 const isCorrect = item[`optionList[${i}].isCorrect`];
-                if (optionValue !== undefined && optionValue !== '') {
+                if (optionValue !== undefined && optionValue !== "") {
                     optionList.push({ optionValue, isCorrect: isCorrect || false });
                 }
             }
@@ -647,6 +705,7 @@ const bulkUploadCompetitionQuestions = (req, res) => __awaiter(void 0, void 0, v
                 compImgUrl: item.compImgUrl,
                 difficultyLevel: item.difficultyLevel,
                 country: item.country,
+                globalView: item.globalView,
                 questionCreator: item.questionCreator,
                 questionOwner: item.questionOwner,
                 optionList,
@@ -661,11 +720,19 @@ const bulkUploadCompetitionQuestions = (req, res) => __awaiter(void 0, void 0, v
             });
         }
         const insertedQuestions = yield questionModel_1.default.insertMany(questions);
-        res.status(201).json({ status: true, message: 'Questions uploaded successfully', data: insertedQuestions });
+        res
+            .status(201)
+            .json({
+            status: true,
+            message: "Questions uploaded successfully",
+            data: insertedQuestions,
+        });
     }
     catch (error) {
-        console.error('Error during bulk upload:', error);
-        res.status(500).json({ status: false, message: 'Internal server error', error });
+        console.error("Error during bulk upload:", error);
+        res
+            .status(500)
+            .json({ status: false, message: "Internal server error", error });
     }
 });
 exports.bulkUploadCompetitionQuestions = bulkUploadCompetitionQuestions;

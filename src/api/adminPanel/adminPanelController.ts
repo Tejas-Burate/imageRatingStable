@@ -177,7 +177,6 @@ const updateSelectedQuestionsQuestionOwner = async (req: Request, res: Response)
 
         const oldOwnerObjectId = oldOwnerId;
         const newOwnerObjectId = newOwnerId;
-        console.log("Res", await questionModel.countDocuments({ questionOwner: oldOwnerObjectId }))
 
 
         const result = await questionModel.updateMany(
@@ -188,7 +187,6 @@ const updateSelectedQuestionsQuestionOwner = async (req: Request, res: Response)
             { $set: { questionOwner: newOwnerObjectId } } // Update operation
         );
 
-        console.log('result', result)
         res.status(200).json({
             status: true,
             message: "Question owners updated successfully",

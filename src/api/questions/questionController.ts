@@ -102,15 +102,15 @@ const getQuestionsFilters = async (req: Request, res: Response) => {
     try {
         const {
             search,
-            limit = 10, // Default limit
-            start = 0, // Default start
+            limit, // Default limit
+            start, // Default start
             categoryName,
             question,
             questionTime,
             difficultyLevel,
             country,
             questionCreator,
-            questionOwner,
+            questionOwner
         } = req.body;
 
         const filter: any = {};
@@ -122,6 +122,7 @@ const getQuestionsFilters = async (req: Request, res: Response) => {
                 { orgImgUrl: searchRegex },
                 { compImgUrl: searchRegex },
                 { country: searchRegex },
+                { "optionList.optionValue": searchRegex }
             ];
         }
 
@@ -183,8 +184,7 @@ const getQuestionsFilters = async (req: Request, res: Response) => {
             .populate("categoryId questionCreator questionOwner");
 
         if (questions.length === 0) {
-            res.status(404).json({ status: false, message: "No questions found" });
-            return;
+            return res.status(404).json({ status: false, message: "No questions found" });
         }
 
         res.status(200).json({
@@ -198,6 +198,7 @@ const getQuestionsFilters = async (req: Request, res: Response) => {
         res.status(500).json({ status: false, error: "Internal server error", message: error });
     }
 };
+
 
 const getQuestionById = async (req: Request, res: Response) => {
     try {
@@ -493,13 +494,11 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
 
         let questionQuery: any = { categoryId };
 
-        // Add country filter if the category is one of the specified categories
         if (categoriesWithCountryFilter.includes(categoryName)) {
             questionQuery.country = user.country;
         }
 
         if (await isGeneralQuizSubscription(userId)) {
-
             if (await generalQuizPlanExpired(userId)) {
                 return res.status(400).json({ status: false, message: "Your general quiz plan has expired. Please renew your subscription." });
             }
@@ -531,6 +530,7 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
                     : wronglyAnswered.length > 0 ? questionsWithOptionValues.filter(q => wronglyAnswered.includes(q._id.toString()))
                         : questionsWithOptionValues.filter(q => correctlyAnswered.includes(q._id.toString()));
 
+
             if (prioritizedQuestions.length === 0) {
                 return res.status(404).json({ status: false, message: "No new questions available for this category." });
             }
@@ -555,8 +555,8 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
                 createdAt: { $gte: startOfDay, $lt: endOfDay }
             }).sort({ createdAt: -1 }).exec();
 
-            if (todayQuestions.length >= 15) {
-                return res.status(403).json({ status: false, message: "You have reached the daily limit of 10 questions for non-subscribed users." });
+            if (todayQuestions.length >= 15 || todayQuestions.length == 15) {
+                return res.status(403).json({ status: false, message: "You have reached the daily limit of 15 questions for non-subscribed users." });
             }
 
             const allQuestions = await questionModel.find(questionQuery).populate({ path: "categoryId", select: "_id categoryName" });
@@ -585,6 +585,7 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
                     : wronglyAnswered.length > 0 ? questionsWithOptionValues.filter(q => wronglyAnswered.includes(q._id.toString()))
                         : [];
 
+
             if (prioritizedQuestions.length === 0) {
                 return res.status(404).json({ status: false, message: "No new questions available for this category." });
             }
@@ -609,6 +610,7 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
         res.status(500).json({ status: false, message: error.message || "Internal server error" });
     }
 };
+
 
 const getNextQuestionByCategoryId = async (req: Request, res: Response) => {
     try {
@@ -764,6 +766,7 @@ const getNextQuestionByCategoryId = async (req: Request, res: Response) => {
         res.status(500).json({
             status: false,
             message: "An error occurred while fetching the next question.",
+            error: error
         });
     }
 };
@@ -906,6 +909,11 @@ const bulkUploadQuestions = async (req: Request, res: Response) => {
             } else if (typeof item.country !== "string") {
                 invalidFields.push("country (should be string)");
             }
+            // if (!item.globalView) {
+            //     missingFields.push("globalView");
+            // } else if (typeof item.globalView !== "boolean") {
+            //     invalidFields.push("globalView (should be boolean)");
+            // }
 
             if (!item.questionCreator) {
                 missingFields.push("questionCreator");
@@ -919,6 +927,7 @@ const bulkUploadQuestions = async (req: Request, res: Response) => {
                 invalidFields.push("questionOwner (should be string)");
             }
 
+            console.log('missingFields', missingFields)
             if (missingFields.length > 0 || invalidFields.length > 0) {
                 errors.push({
                     row: index + 1,
@@ -936,6 +945,7 @@ const bulkUploadQuestions = async (req: Request, res: Response) => {
                 compImgUrl: item.compImgUrl,
                 difficultyLevel: item.difficultyLevel,
                 country: item.country,
+                globalView: item.globalView,
                 questionCreator: item.questionCreator,
                 questionOwner: item.questionOwner,
                 optionList,
@@ -1004,6 +1014,8 @@ const getQuestionsCountByCategory = async (req: Request, res: Response) => {
         });
     }
 };
+
+
 
 
 export {

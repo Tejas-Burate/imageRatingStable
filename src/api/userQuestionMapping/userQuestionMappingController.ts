@@ -348,6 +348,85 @@ const getRecentQuizs = async (req: Request, res: Response) => {
     }
 };
 
+const getGeneralQuizGlobalResultByUserId = async (req: Request, res: Response) => {
+    try {
+        const userId = req.params.id;
+
+        // Fetch total points for each user and rank them
+        const allUserPoints = await userQuestionMappingModel.aggregate([
+            {
+                $group: {
+                    _id: "$userId",
+                    totalPoints: {
+                        $sum: {
+                            $cond: [{ $eq: ["$isCorrect", true] }, 10, 0]
+                        }
+                    }
+                }
+            },
+            { $sort: { totalPoints: -1 } }, // Sort by total points in descending order
+            {
+                $lookup: {
+                    from: "auths", // Assuming 'auths' is the name of the user collection
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "userInfo"
+                }
+            },
+            { $unwind: "$userInfo" }, // Unwind to get the user information
+            {
+                $project: {
+                    _id: 1,
+                    totalPoints: 1,
+                    rank: { $literal: 0 }, // Placeholder for rank, to be updated later
+                    "userInfo.fullName": 1 // Include the user fullName in the output
+                }
+            }
+        ]);
+
+        // Assign ranks to users based on total points
+        const userRanks = allUserPoints.map((user, index) => ({
+            ...user,
+            rank: index + 1
+        }));
+
+        // Find the top 10 users
+        const topUsers = userRanks.slice(0, 10);
+
+        // Find the rank and points of the specified user
+        const userRankInfo = userRanks.find(user => user._id.toString() === userId);
+        if (!userRankInfo) {
+            return res.status(404).json({
+                status: false,
+                message: "User not found in the ranking."
+            });
+        }
+
+        res.status(200).json({
+            status: true,
+            message: "Leaderboard fetched successfully.",
+            userRank: userRankInfo.rank,
+            userTotalPoints: userRankInfo.totalPoints,
+            userName: userRankInfo.userInfo.fullName,
+            topUsers: topUsers.map(user => ({
+                userId: user._id,
+                totalPoints: user.totalPoints,
+                rank: user.rank,
+                userName: user.userInfo.fullName
+            }))
+        });
+    } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        res.status(500).json({
+            status: false,
+            message: "An error occurred while fetching the leaderboard."
+        });
+    }
+};
 
 
-export { createUserQuestionMapping, getAllUserQuestionMapping, getUserQuestionMappingById, getCategoryStatistics, getCategoryPoints, updateUserQuestionMappingById, deleteUserQuestionMappingById, getSubmittedQuestions, getRecentQuizs }
+
+
+
+
+export { createUserQuestionMapping, getAllUserQuestionMapping, getGeneralQuizGlobalResultByUserId, getUserQuestionMappingById, getCategoryStatistics, getCategoryPoints, updateUserQuestionMappingById, deleteUserQuestionMappingById, getSubmittedQuestions, getRecentQuizs }

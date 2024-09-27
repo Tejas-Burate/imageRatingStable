@@ -3,25 +3,25 @@ import quizModel from "./quizModel";
 
 const createQuiz = async (req: Request, res: Response) => {
     try {
-        const { registrationStartDate, ...body } = req.body;
+        const { quizStartDateAndTime, ...body } = req.body;
 
-        if (!registrationStartDate) {
+        if (!quizStartDateAndTime) {
             return res.status(400).json({ status: false, message: "registrationStartDate is required" });
         }
 
-        const startDate = new Date(registrationStartDate);
-
-        const endDate = new Date(startDate.getTime() - 15 * 60 * 1000);
+        const startDate = new Date(quizStartDateAndTime);
+        const registrationEndDate = new Date(startDate.getTime() - 15 * 60 * 1000);
+        const quizEndDateAndTime = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
 
         const quizData = {
             ...body,
-            quizStartDateAndTime: startDate,
-            registrationStartDate: startDate,
-            registrationEndDate: endDate
+            quizStartDateAndTime,
+            registrationEndDate: registrationEndDate,
+            quizEndDateAndTime: quizEndDateAndTime
         };
-
-        console.log('Quiz data:', quizData);
         const quiz = await quizModel.create(quizData);
+        quiz.registrationStartDate = quiz.createdAt;
+        quiz.save()
 
         if (!quiz) {
             return res.status(400).json({ status: false, message: "Failed to create new quiz" });

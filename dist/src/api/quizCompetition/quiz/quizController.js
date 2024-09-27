@@ -27,15 +27,17 @@ exports.deleteQuizById = exports.updateQuizById = exports.getQuizFilters = expor
 const quizModel_1 = __importDefault(require("./quizModel"));
 const createQuiz = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const _a = req.body, { registrationStartDate } = _a, body = __rest(_a, ["registrationStartDate"]);
-        if (!registrationStartDate) {
+        const _a = req.body, { quizStartDateAndTime } = _a, body = __rest(_a, ["quizStartDateAndTime"]);
+        if (!quizStartDateAndTime) {
             return res.status(400).json({ status: false, message: "registrationStartDate is required" });
         }
-        const startDate = new Date(registrationStartDate);
-        const endDate = new Date(startDate.getTime() - 15 * 60 * 1000);
-        const quizData = Object.assign(Object.assign({}, body), { quizStartDateAndTime: startDate, registrationStartDate: startDate, registrationEndDate: endDate });
-        console.log('Quiz data:', quizData);
+        const startDate = new Date(quizStartDateAndTime);
+        const registrationEndDate = new Date(startDate.getTime() - 15 * 60 * 1000);
+        const quizEndDateAndTime = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+        const quizData = Object.assign(Object.assign({}, body), { quizStartDateAndTime, registrationEndDate: registrationEndDate, quizEndDateAndTime: quizEndDateAndTime });
         const quiz = yield quizModel_1.default.create(quizData);
+        quiz.registrationStartDate = quiz.createdAt;
+        quiz.save();
         if (!quiz) {
             return res.status(400).json({ status: false, message: "Failed to create new quiz" });
         }

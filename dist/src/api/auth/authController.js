@@ -22,6 +22,9 @@ const geoip_country_1 = __importDefault(require("geoip-country"));
 const sessionModel_1 = __importDefault(require("../session/sessionModel"));
 const sessionModel_2 = __importDefault(require("../quizCompetition/session/sessionModel"));
 const userQuestionMappingModel_1 = __importDefault(require("../userQuestionMapping/userQuestionMappingModel"));
+const userQuizCompetitionQuestionModel_1 = __importDefault(require("../quizCompetition/userQuizCompetitionQuestion/userQuizCompetitionQuestionModel"));
+const questionModel_1 = __importDefault(require("../questions/questionModel"));
+const questionModel_2 = __importDefault(require("../quizCompetition/questions/questionModel"));
 const { calculateAge } = auth_1.default;
 const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -345,19 +348,28 @@ exports.checkUser = checkUser;
 const checkUserActiveSession = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const userId = req.params.userId;
-        const generalQuizSession = yield sessionModel_1.default.findOne({ userId, sessionStatus: "Running" });
-        const competitionQuizSession = yield sessionModel_2.default.findOne({ userId, sessionStatus: "Running" });
+        const generalQuizSession = yield sessionModel_1.default.findOne({ userId: userId, sessionStatus: "Running" });
+        const competitionQuizSession = yield sessionModel_2.default.findOne({ userId: userId, sessionStatus: "Running" });
+        if (!generalQuizSession && !competitionQuizSession) {
+            return res.status(404).json({
+                status: false,
+                message: "User has no active sessions for any quiz",
+            });
+        }
+        const payloads = [];
         if (generalQuizSession) {
             const userQuiz = yield userQuestionMappingModel_1.default.findOne({ sessionId: generalQuizSession._id })
-                .sort({ createdAt: -1 }) // Adjust the field name accordingly if it's not `createdAt`
+                .sort({ createdAt: -1 })
                 .limit(1);
             if (userQuiz) {
-                // If there are submitted questions
-                res.status(200).json({
-                    status: true,
-                    message: "User has an active general quiz session",
+                const genQuizQuestion = yield questionModel_1.default.findById(userQuiz.questionId);
+                if (!genQuizQuestion) {
+                    return res.status(404).json({ status: false, message: "Question not found" });
+                }
+                payloads.push({
                     session: generalQuizSession,
-                    sessionType: "general",
+                    sessionType: "General Quiz",
+                    pendingSession: true,
                     payload: {
                         userId: userQuiz.userId,
                         categoryId: userQuiz.categoryId,
@@ -366,34 +378,56 @@ const checkUserActiveSession = (req, res) => __awaiter(void 0, void 0, void 0, f
                         isCorrect: userQuiz.isCorrect,
                         timeTaken: userQuiz.timeTaken,
                         status: userQuiz.status,
-                        attempts: userQuiz.attempts
+                        attempts: userQuiz.attempts,
+                        difficultyLevel: genQuizQuestion.difficultyLevel,
                     }
                 });
             }
             else {
-                // If no questions have been submitted yet, delete the session
                 yield sessionModel_1.default.deleteOne({ _id: generalQuizSession._id });
-                res.status(200).json({
-                    status: true,
-                    message: "User had an active general quiz session but no questions were submitted. The session has been deleted.",
-                    session: null,
-                    sessionType: "general"
-                });
             }
         }
-        else if (competitionQuizSession) {
+        if (competitionQuizSession) {
+            const userQuiz = yield userQuizCompetitionQuestionModel_1.default.findOne({ sessionId: competitionQuizSession._id })
+                .sort({ createdAt: -1 })
+                .limit(1);
+            if (userQuiz) {
+                const compQuizQuestion = yield questionModel_2.default.findById(userQuiz.questionId);
+                if (!compQuizQuestion) {
+                    return res.status(404).json({ status: false, message: "Question not found" });
+                }
+                payloads.push({
+                    session: competitionQuizSession,
+                    sessionType: "Competition Quiz",
+                    pendingSession: true,
+                    payload: {
+                        userId: userQuiz.userId,
+                        quizId: userQuiz.quizId,
+                        questionId: userQuiz.questionId,
+                        sessionId: userQuiz.sessionId,
+                        isCorrect: userQuiz.isCorrect,
+                        timeTaken: userQuiz.timeTaken,
+                        status: userQuiz.status,
+                        attempts: userQuiz.attempts,
+                        difficultyLevel: compQuizQuestion.difficultyLevel,
+                    }
+                });
+            }
+            else {
+                yield sessionModel_2.default.deleteOne({ _id: competitionQuizSession._id });
+            }
+        }
+        if (payloads.length > 0) {
             res.status(200).json({
                 status: true,
-                message: "User has an active competition quiz session",
-                session: competitionQuizSession,
-                sessionType: "competition"
+                message: "User has active quiz sessions",
+                sessions: payloads,
             });
         }
         else {
-            res.status(200).json({
+            res.status(404).json({
                 status: false,
-                message: "User has no active sessions",
-                session: null
+                message: "User had active quiz sessions but no questions were submitted. The sessions have been deleted.",
             });
         }
     }

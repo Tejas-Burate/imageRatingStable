@@ -4,7 +4,6 @@ import { Request, Response } from "express";
 const createMinorCategory = async (req: Request, res: Response) => {
     try {
         const MinorCategory = await MinorCategoryModel.create({ ...req.body });
-        console.log('MinorCategory', MinorCategory)
 
         if (!MinorCategory) {
             res.status(400).json({ status: false, message: "Error for creating MinorCategory" });

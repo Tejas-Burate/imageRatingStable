@@ -57,7 +57,6 @@ const getRecentThreeSessions = async (userId: String) => {
     const recentSessions = await sessionModel.find({ userId: userId })
         .sort({ createdAt: -1 })  // Sort by the `createdAt` field in descending order
         .limit(3).select("_id");  // Limit to the most recent three records
-    console.log('recentSessions', recentSessions)
 
     return recentSessions
 }

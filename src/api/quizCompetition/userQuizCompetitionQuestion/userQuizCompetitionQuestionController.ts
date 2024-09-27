@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import userQuizCompetitionQuestionModel from "./userQuizCompetitionQuestionModel";
+import settingModel from "../../setting/settingModel";
 
 
 const getAllUserQuizCompetitionQuestion = async (req: Request, res: Response) => {
@@ -104,6 +105,10 @@ const getTopFiveResult = async (req: Request, res: Response) => {
 const getQuizCompetitionResultByUser = async (req: Request, res: Response) => {
     try {
         const { userId, quizId, sessionId } = req.body;
+        const quizCompetitionSetting = await settingModel.findOne({ settingName: "Competition Quiz" });
+        if (!quizCompetitionSetting) {
+            return res.status(404).json({ status: false, message: "Competition Quiz setting not found.." });
+        }
 
         // Fetch the user's quiz competition results
         const userResult = await userQuizCompetitionQuestionModel.aggregate([
@@ -117,24 +122,35 @@ const getQuizCompetitionResultByUser = async (req: Request, res: Response) => {
             {
                 $group: {
                     _id: "$userId", // Group by `userId` to aggregate results for each user
-                    UnAttempted: { $sum: { $cond: [{ $eq: ["$status", "UnAttempted"] }, 1, 0] } }, // Count of correct answers
+                    UnAttempted: { $sum: { $cond: [{ $eq: ["$status", "UnAttempted"] }, 1, 0] } }, // Count of unattempted answers
                     correctAnswers: { $sum: { $cond: [{ $eq: ["$status", "CorrectlyAnswered"] }, 1, 0] } }, // Count of correct answers
-                    incorrectAnswers: { $sum: { $cond: [{ $eq: ["$status", "WronglyAnswered"] }, 1, 0] } } // Count of incorrect answers
+                    incorrectAnswers: { $sum: { $cond: [{ $eq: ["$status", "WronglyAnswered"] }, 1, 0] } }, // Count of incorrect answers
                 }
             }
         ]);
 
-
         if (userResult.length === 0) {
-            return res.status(404).json({ status: false, message: "No results found for the specified user and session" });
+            return res.status(404).json({ status: false, message: "No results found for the specified user and session." });
         }
 
-        return res.status(200).json({ status: true, message: "User's quiz competition results fetched successfully", data: userResult });
+        const result = userResult[0];
+        const totalPoints = result.correctAnswers * quizCompetitionSetting.correctAnswerPoints;
+
+        return res.status(200).json({
+            status: true,
+            message: "User's quiz competition results fetched successfully",
+            data: {
+                ...result,
+                totalPoints: totalPoints,
+                totalQuestions: quizCompetitionSetting.noOfQuizQuestions
+            }
+        });
     } catch (error) {
         console.log('Error fetching quiz competition results:', error);
         return res.status(500).json({ status: false, message: "Internal server error", error });
     }
 };
+
 
 
 

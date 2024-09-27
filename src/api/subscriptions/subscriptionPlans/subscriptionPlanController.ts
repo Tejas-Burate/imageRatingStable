@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import subscriptionPlanModel from "./subscriptionPlanModel";
+import subscriptionTypeModel from "../subscriptionType/subscriptionTypeModel";
 
 const createSubscriptions = async (req: Request, res: Response) => {
     try {
@@ -84,6 +85,77 @@ const deleteSubscriptionPlanById = async (req: Request, res: Response) => {
     }
 }
 
+const getSubscriptionPlanFilters = async (req: Request, res: Response) => {
+    try {
+        const {
+            search,
+            limit,
+            start,
+            subscriptionType,
+            price,
+            duration,
+            benefits,
+        } = req.body;
+
+        const filter: any = {};
+
+        if (search) {
+            const searchRegex = new RegExp(search, "i");
+            const [subscriptionType] = await Promise.all([
+                subscriptionTypeModel.findOne({ subscriptionType: searchRegex })
+            ]);
+            filter.$or = [
+                { price: isNaN(Number(searchRegex)) ? undefined : Number(searchRegex) },
+                { duration: isNaN(Number(searchRegex)) ? undefined : Number(searchRegex) },
+                { subscriptionTypeId: subscriptionType?._id },
+                { benefits: searchRegex }
+            ];
+        }
+
+        if (subscriptionType) {
+            const subscription = await subscriptionTypeModel.find({
+                subscriptionType: new RegExp(subscriptionType, "i")
+            });
+
+            if (subscription.length > 0) {
+                filter.subscriptionTypeId = { $in: subscription.map(c => c._id) };
+            } else {
+                return res.status(404).json({ status: false, message: "No matching subscription found" });
+            }
+        }
+
+        if (price && !isNaN(Number(price))) {
+            filter.price = Number(price);
+        }
+        if (duration && !isNaN(Number(duration))) {
+            filter.duration = Number(duration);
+        }
+        if (benefits) {
+            filter.benefits = new RegExp(benefits, "i");
+        }
+
+        const subscriptionPlan = await subscriptionPlanModel.find(filter)
+            .skip(parseInt(start))
+            .limit(parseInt(limit))
+            .populate("subscriptionTypeId");
+
+        if (subscriptionPlan.length === 0) {
+            res.status(404).json({ status: false, message: "No subscriptionPlan found" });
+            return;
+        }
+
+        res.status(200).json({
+            status: true,
+            totalRecords: subscriptionPlan.length,
+            message: "subscriptionPlan fetched successfully",
+            data: subscriptionPlan,
+        });
+    } catch (error) {
+        console.error("Error fetching subscriptionPlan:", error);
+        res.status(500).json({ status: false, error: "Internal server error", message: error });
+    }
+};
+
 export {
-    createSubscriptions, getAllSubscriptionPlans, getSubscriptionPlanById, updateSubscriptionPlanById, deleteSubscriptionPlanById, getSubscriptionPlanBySubscriptionTypeId
+    createSubscriptions, getAllSubscriptionPlans, getSubscriptionPlanById, getSubscriptionPlanFilters, updateSubscriptionPlanById, deleteSubscriptionPlanById, getSubscriptionPlanBySubscriptionTypeId
 }

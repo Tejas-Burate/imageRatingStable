@@ -7,23 +7,28 @@ import session from "../../../shared/utils/competitionSession";
 import setting from "../../../shared/utils/setting";
 import userQuizCompetitionModel from "../userQuizCompetitionQuestion/userQuizCompetitionQuestionModel";
 import authModel from "../../auth/authModel";
-import xlsx from 'xlsx';
+import xlsx from "xlsx";
 import sessionModel from "../session/sessionModel";
 import quizModel from "../quiz/quizModel";
 import subscription from "../../../shared/utils/subscription";
 const { ObjectId } = mongoose.Types;
-const { createUserQuizQuestionMapping, getActiveQuizSessionBySessionId, getPointsBySessionId, } = userQuizCompetition
-const { getCompetitionTotalQuestionsCount, getCompetitionQuestionsTime } = setting;
+const {
+    createUserQuizQuestionMapping,
+    getActiveQuizSessionBySessionId,
+    getPointsBySessionId,
+} = userQuizCompetition;
+const { getCompetitionTotalQuestionsCount, getCompetitionQuestionsTime } =
+    setting;
 const {
     createSession,
     updateSession,
+    hasQuizStarted,
     getActiveSession,
     getActiveSessionBySessionId,
     getCurrentQuestionNoBySessions,
 } = session;
-const { competitionQuizPlanExpired, isCompetitionQuizSubscription } = subscription
-
-
+const { competitionQuizPlanExpired, isCompetitionQuizSubscription } =
+    subscription;
 
 const createQuizQuestion = async (req: Request, res: Response) => {
     try {
@@ -116,18 +121,21 @@ const getCompetitionQuestionsFilters = async (req: Request, res: Response) => {
                 { orgImgUrl: searchRegex },
                 { compImgUrl: searchRegex },
                 { country: searchRegex },
+                { "optionList.optionValue": searchRegex },
             ];
         }
 
         if (quizName) {
             const categories = await quizModel.find({
-                quizName: new RegExp(quizName, "i")
+                quizName: new RegExp(quizName, "i"),
             });
 
             if (categories.length > 0) {
-                filter.quizId = { $in: categories.map(c => c._id) };
+                filter.quizId = { $in: categories.map((c) => c._id) };
             } else {
-                return res.status(404).json({ status: false, message: "No matching categories found" });
+                return res
+                    .status(404)
+                    .json({ status: false, message: "No matching categories found" });
             }
         }
 
@@ -145,29 +153,34 @@ const getCompetitionQuestionsFilters = async (req: Request, res: Response) => {
 
         if (questionCreator) {
             const creators = await authModel.find({
-                fullName: new RegExp(questionCreator, "i")
+                fullName: new RegExp(questionCreator, "i"),
             });
 
             if (creators.length > 0) {
-                filter.questionCreator = { $in: creators.map(c => c._id) };
+                filter.questionCreator = { $in: creators.map((c) => c._id) };
             } else {
-                return res.status(404).json({ status: false, message: "No matching creators found" });
+                return res
+                    .status(404)
+                    .json({ status: false, message: "No matching creators found" });
             }
         }
 
         if (questionOwner) {
             const owners = await authModel.find({
-                fullName: new RegExp(questionOwner, "i")
+                fullName: new RegExp(questionOwner, "i"),
             });
 
             if (owners.length > 0) {
-                filter.questionOwner = { $in: owners.map(o => o._id) };
+                filter.questionOwner = { $in: owners.map((o) => o._id) };
             } else {
-                return res.status(404).json({ status: false, message: "No matching owners found" });
+                return res
+                    .status(404)
+                    .json({ status: false, message: "No matching owners found" });
             }
         }
 
-        const questions = await questionModel.find(filter)
+        const questions = await questionModel
+            .find(filter)
             .skip(parseInt(start))
             .limit(parseInt(limit))
             .populate("quizId questionCreator questionOwner");
@@ -185,7 +198,9 @@ const getCompetitionQuestionsFilters = async (req: Request, res: Response) => {
         });
     } catch (error) {
         console.error("Error fetching questions:", error);
-        res.status(500).json({ status: false, error: "Internal server error", message: error });
+        res
+            .status(500)
+            .json({ status: false, error: "Internal server error", message: error });
     }
 };
 
@@ -197,7 +212,6 @@ const getQuestionById = async (req: Request, res: Response) => {
             .populate({ path: "questionCreator", select: "_id fullName" })
             .populate({ path: "questionOwner", select: "_id fullName" })
             .populate({ path: "quizId", select: "_id quizName" });
-
 
         if (!question) {
             res.status(404).json({
@@ -294,7 +308,6 @@ const deleteQuestionById = async (req: Request, res: Response) => {
         res.status(500).json({ status: false, message: error });
     }
 };
-
 
 // const getFiveByQuestionByQuizId = async (req: Request, res: Response) => {
 //     try {
@@ -403,28 +416,64 @@ const getFiveByQuestionByQuizId = async (req: Request, res: Response) => {
         if (!user) {
             return res
                 .status(404)
-                .json({ status: false, message: `User with ID ${userId} is not found.` });
+                .json({
+                    status: false,
+                    message: `User with ID ${userId} is not found.`,
+                });
         }
 
-        const quizIsGiven = await sessionModel.findOne({ userId: userId, quizId: quizId });
-
-        if (quizIsGiven) {
-            return res.status(401).json({ status: false, message: "You have already given this quiz" });
+        const quiz = await quizModel.findById(quizId);
+        if (!quiz) {
+            return res
+                .status(404)
+                .json({
+                    status: false,
+                    message: `Quiz with ID ${quizId} is not found.`,
+                });
         }
-        if (!await isCompetitionQuizSubscription(userId)) {
-            return res.status(401).json({ status: false, message: "Please buy subscription before starting quiz competition.." });
+
+        // const isQuizStarted = await hasQuizStarted(quizId);
+        // if (isQuizStarted) {
+        //     return res
+        //         .status(403)
+        //         .json({ status: false, message: "Quiz has not started yet." });
+        // }
+
+        // const quizIsGiven = await sessionModel.findOne({
+        //     userId: userId,
+        //     quizId: quizId,
+        //     sessionStatus: "Completed"
+        // });
+        // if (quizIsGiven) {
+        //     return res
+        //         .status(401)
+        //         .json({ status: false, message: "You have already given this quiz" });
+        // }
+        if (!(await isCompetitionQuizSubscription(userId))) {
+            return res
+                .status(401)
+                .json({
+                    status: false,
+                    message: "Please buy subscription before starting quiz competition..",
+                });
         }
 
         if (await competitionQuizPlanExpired(userId)) {
-            return res.status(401).json({ status: false, message: "Your subscription is expired, please renew your competition quiz subscription" });
-
+            return res
+                .status(401)
+                .json({
+                    status: false,
+                    message:
+                        "Your subscription is expired, please renew your competition quiz subscription",
+                });
         }
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date();
         endOfDay.setHours(23, 59, 59, 999);
 
-        const allQuestions = await questionModel.find({ quizId })
+        const allQuestions = await questionModel
+            .find({ quizId })
             .populate({ path: "quizId", select: "_id quizName" });
 
         if (allQuestions.length === 0) {
@@ -446,18 +495,40 @@ const getFiveByQuestionByQuizId = async (req: Request, res: Response) => {
             };
         });
 
-        const answeredQuestions = await userQuizCompetitionModel.find({ userId, quizId }).select("questionId status");
-        const answeredQuestionIds = answeredQuestions.map(q => q.questionId.toString());
+        const answeredQuestions = await userQuizCompetitionModel
+            .find({ userId, quizId })
+            .select("questionId status");
+        const answeredQuestionIds = answeredQuestions.map((q) =>
+            q.questionId.toString()
+        );
 
-        const notYetPresented = questionsWithOptionValues.filter(q => !answeredQuestionIds.includes(q._id.toString()));
-        const unAttempted = answeredQuestions.filter(q => q.status === "UnAttempted").map(q => q.questionId.toString());
-        const wronglyAnswered = answeredQuestions.filter(q => q.status === "WronglyAnswered").map(q => q.questionId.toString());
-        const correctlyAnswered = answeredQuestions.filter(q => q.status === "CorrectlyAnswered").map(q => q.questionId.toString());
+        const notYetPresented = questionsWithOptionValues.filter(
+            (q) => !answeredQuestionIds.includes(q._id.toString())
+        );
+        const unAttempted = answeredQuestions
+            .filter((q) => q.status === "UnAttempted")
+            .map((q) => q.questionId.toString());
+        const wronglyAnswered = answeredQuestions
+            .filter((q) => q.status === "WronglyAnswered")
+            .map((q) => q.questionId.toString());
+        const correctlyAnswered = answeredQuestions
+            .filter((q) => q.status === "CorrectlyAnswered")
+            .map((q) => q.questionId.toString());
 
-        let prioritizedQuestions = notYetPresented.length > 0 ? notYetPresented
-            : unAttempted.length > 0 ? questionsWithOptionValues.filter(q => unAttempted.includes(q._id.toString()))
-                : wronglyAnswered.length > 0 ? questionsWithOptionValues.filter(q => wronglyAnswered.includes(q._id.toString()))
-                    : questionsWithOptionValues.filter(q => correctlyAnswered.includes(q._id.toString()));
+        let prioritizedQuestions =
+            notYetPresented.length > 0
+                ? notYetPresented
+                : unAttempted.length > 0
+                    ? questionsWithOptionValues.filter((q) =>
+                        unAttempted.includes(q._id.toString())
+                    )
+                    : wronglyAnswered.length > 0
+                        ? questionsWithOptionValues.filter((q) =>
+                            wronglyAnswered.includes(q._id.toString())
+                        )
+                        : questionsWithOptionValues.filter((q) =>
+                            correctlyAnswered.includes(q._id.toString())
+                        );
 
         if (prioritizedQuestions.length === 0) {
             return res.status(404).json({
@@ -537,11 +608,12 @@ const getNextQuestionByQuizId = async (req: Request, res: Response) => {
         const answeredQuestionIds = answeredQuestions.map((q) => ({
             id: q.questionId.toString(),
             status: q.status,
-            sessionId: q.sessionId
+            sessionId: q.sessionId,
         }));
 
-        // Get all questions presented in this session
-        const presentedQuestionsInSession = answeredQuestionIds.filter(q => q.sessionId === sessionId).map(q => q.id);
+        const presentedQuestionsInSession = answeredQuestionIds
+            .filter((q) => q.sessionId === sessionId)
+            .map((q) => q.id);
 
         const questionsWithOptionValues = questions.map((question) => {
             const optionListWithIds = question.optionList.map((option) => ({
@@ -577,16 +649,22 @@ const getNextQuestionByQuizId = async (req: Request, res: Response) => {
         );
 
         let prioritizedQuestions = [
-            ...notPresented.filter(q => !presentedQuestionsInSession.includes(q._id.toString())),
-            ...(notPresented.length === 0 ? unattempted : []).filter(q => !presentedQuestionsInSession.includes(q._id.toString())),
+            ...notPresented.filter(
+                (q) => !presentedQuestionsInSession.includes(q._id.toString())
+            ),
+            ...(notPresented.length === 0 ? unattempted : []).filter(
+                (q) => !presentedQuestionsInSession.includes(q._id.toString())
+            ),
             ...(notPresented.length === 0 && unattempted.length === 0
                 ? wronglyAnswered
-                : []).filter(q => !presentedQuestionsInSession.includes(q._id.toString())),
+                : []
+            ).filter((q) => !presentedQuestionsInSession.includes(q._id.toString())),
             ...(notPresented.length === 0 &&
                 unattempted.length === 0 &&
                 wronglyAnswered.length === 0
                 ? correctlyAnswered
-                : []).filter(q => !presentedQuestionsInSession.includes(q._id.toString())),
+                : []
+            ).filter((q) => !presentedQuestionsInSession.includes(q._id.toString())),
         ];
 
         if (prioritizedQuestions.length === 0) {
@@ -612,11 +690,10 @@ const getNextQuestionByQuizId = async (req: Request, res: Response) => {
         res.status(500).json({
             status: false,
             message: "An error occurred while fetching the next question.",
-            error: error
+            error: error,
         });
     }
 };
-
 
 const verifyQuizQuestionAnswer = async (req: Request, res: Response) => {
     try {
@@ -693,7 +770,9 @@ const bulkUploadCompetitionQuestions = async (req: Request, res: Response) => {
         const quizId = req.query.quizId;
 
         if (!file) {
-            return res.status(400).json({ status: false, message: 'No file uploaded' });
+            return res
+                .status(400)
+                .json({ status: false, message: "No file uploaded" });
         }
 
         if (!quizId) {
@@ -703,7 +782,7 @@ const bulkUploadCompetitionQuestions = async (req: Request, res: Response) => {
             });
         }
 
-        const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+        const workbook = xlsx.read(file.buffer, { type: "buffer" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const data = xlsx.utils.sheet_to_json(worksheet);
@@ -717,7 +796,7 @@ const bulkUploadCompetitionQuestions = async (req: Request, res: Response) => {
                 const optionValue = item[`optionList[${i}].optionValue`];
                 const isCorrect = item[`optionList[${i}].isCorrect`];
 
-                if (optionValue !== undefined && optionValue !== '') {
+                if (optionValue !== undefined && optionValue !== "") {
                     optionList.push({ optionValue, isCorrect: isCorrect || false });
                 }
             }
@@ -730,8 +809,6 @@ const bulkUploadCompetitionQuestions = async (req: Request, res: Response) => {
             } else if (typeof item.question !== "string") {
                 invalidFields.push("question (should be string)");
             }
-
-
 
             // if (!item.orgImgUrl) {
             //     missingFields.push("orgImgUrl");
@@ -786,6 +863,7 @@ const bulkUploadCompetitionQuestions = async (req: Request, res: Response) => {
                 compImgUrl: item.compImgUrl,
                 difficultyLevel: item.difficultyLevel,
                 country: item.country,
+                globalView: item.globalView,
                 questionCreator: item.questionCreator,
                 questionOwner: item.questionOwner,
                 optionList,
@@ -803,14 +881,20 @@ const bulkUploadCompetitionQuestions = async (req: Request, res: Response) => {
 
         const insertedQuestions = await questionModel.insertMany(questions);
 
-        res.status(201).json({ status: true, message: 'Questions uploaded successfully', data: insertedQuestions });
+        res
+            .status(201)
+            .json({
+                status: true,
+                message: "Questions uploaded successfully",
+                data: insertedQuestions,
+            });
     } catch (error) {
-        console.error('Error during bulk upload:', error);
-        res.status(500).json({ status: false, message: 'Internal server error', error });
+        console.error("Error during bulk upload:", error);
+        res
+            .status(500)
+            .json({ status: false, message: "Internal server error", error });
     }
 };
-
-
 
 export {
     createQuizQuestion,
@@ -823,5 +907,5 @@ export {
     getNextQuestionByQuizId,
     updateQuestionById,
     deleteQuestionById,
-    getCompetitionQuestionsFilters
+    getCompetitionQuestionsFilters,
 };

@@ -11,6 +11,7 @@ router.get("/getAllUserQuestionMapping", userQuestionMappingController_1.getAllU
 router.get("/getUserQuestionMappingById/:id", userQuestionMappingController_1.getUserQuestionMappingById);
 router.get("/getCategoryStatistics/:id", userQuestionMappingController_1.getCategoryStatistics);
 router.get("/getCategoryPoints/:id", userQuestionMappingController_1.getCategoryPoints);
+router.get("/getGeneralQuizGlobalResultByUserId/:id", userQuestionMappingController_1.getGeneralQuizGlobalResultByUserId);
 router.put("/updateUserQuestionMappingById/:id", userQuestionMappingController_1.updateUserQuestionMappingById);
 router.delete("/deleteUserQuestionMappingById/:id", userQuestionMappingController_1.deleteUserQuestionMappingById);
 router.get("/getRecentQuizs/:id", userQuestionMappingController_1.getRecentQuizs);

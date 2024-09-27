@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getQuizCompetitionResultByUser = exports.getTopFiveResult = exports.getUserQuizCompetitionQuestionById = exports.getAllUserQuizCompetitionQuestion = void 0;
 const mongoose_1 = __importDefault(require("mongoose"));
 const userQuizCompetitionQuestionModel_1 = __importDefault(require("./userQuizCompetitionQuestionModel"));
+const settingModel_1 = __importDefault(require("../../setting/settingModel"));
 const getAllUserQuizCompetitionQuestion = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const userQuizCompetitionQuestion = yield userQuizCompetitionQuestionModel_1.default.find();
@@ -112,6 +113,10 @@ exports.getTopFiveResult = getTopFiveResult;
 const getQuizCompetitionResultByUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { userId, quizId, sessionId } = req.body;
+        const quizCompetitionSetting = yield settingModel_1.default.findOne({ settingName: "Competition Quiz" });
+        if (!quizCompetitionSetting) {
+            return res.status(404).json({ status: false, message: "Competition Quiz setting not found.." });
+        }
         // Fetch the user's quiz competition results
         const userResult = yield userQuizCompetitionQuestionModel_1.default.aggregate([
             {
@@ -124,16 +129,22 @@ const getQuizCompetitionResultByUser = (req, res) => __awaiter(void 0, void 0, v
             {
                 $group: {
                     _id: "$userId", // Group by `userId` to aggregate results for each user
-                    UnAttempted: { $sum: { $cond: [{ $eq: ["$status", "UnAttempted"] }, 1, 0] } }, // Count of correct answers
+                    UnAttempted: { $sum: { $cond: [{ $eq: ["$status", "UnAttempted"] }, 1, 0] } }, // Count of unattempted answers
                     correctAnswers: { $sum: { $cond: [{ $eq: ["$status", "CorrectlyAnswered"] }, 1, 0] } }, // Count of correct answers
-                    incorrectAnswers: { $sum: { $cond: [{ $eq: ["$status", "WronglyAnswered"] }, 1, 0] } } // Count of incorrect answers
+                    incorrectAnswers: { $sum: { $cond: [{ $eq: ["$status", "WronglyAnswered"] }, 1, 0] } }, // Count of incorrect answers
                 }
             }
         ]);
         if (userResult.length === 0) {
-            return res.status(404).json({ status: false, message: "No results found for the specified user and session" });
+            return res.status(404).json({ status: false, message: "No results found for the specified user and session." });
         }
-        return res.status(200).json({ status: true, message: "User's quiz competition results fetched successfully", data: userResult });
+        const result = userResult[0];
+        const totalPoints = result.correctAnswers * quizCompetitionSetting.correctAnswerPoints;
+        return res.status(200).json({
+            status: true,
+            message: "User's quiz competition results fetched successfully",
+            data: Object.assign(Object.assign({}, result), { totalPoints: totalPoints, totalQuestions: quizCompetitionSetting.noOfQuizQuestions })
+        });
     }
     catch (error) {
         console.log('Error fetching quiz competition results:', error);

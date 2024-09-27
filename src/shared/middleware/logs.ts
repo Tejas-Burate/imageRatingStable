@@ -9,7 +9,7 @@ interface JwtPayload {
 
 const requestLogger = async (req: Request, res: Response, next: NextFunction) => {
   const token = req.header("Authorization")?.replace("Bearer ", "");
-  console.log('token', token)
+
   const deviceInfo = req.headers["user-agent"] || "Unknown device";
   const loginEndpoints = ["/auth/login", "/studentRegistration/login", "/auth/googleAuthLogAndRegister"]; // Add your additional login route here
 

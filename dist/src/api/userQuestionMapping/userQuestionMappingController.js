@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getRecentQuizs = exports.getSubmittedQuestions = exports.deleteUserQuestionMappingById = exports.updateUserQuestionMappingById = exports.getCategoryPoints = exports.getCategoryStatistics = exports.getUserQuestionMappingById = exports.getAllUserQuestionMapping = exports.createUserQuestionMapping = void 0;
+exports.getRecentQuizs = exports.getSubmittedQuestions = exports.deleteUserQuestionMappingById = exports.updateUserQuestionMappingById = exports.getCategoryPoints = exports.getCategoryStatistics = exports.getUserQuestionMappingById = exports.getGeneralQuizGlobalResultByUserId = exports.getAllUserQuestionMapping = exports.createUserQuestionMapping = void 0;
 const userQuestionMappingModel_1 = __importDefault(require("./userQuestionMappingModel"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const settingModel_1 = __importDefault(require("../setting/settingModel"));
@@ -330,3 +330,72 @@ const getRecentQuizs = (req, res) => __awaiter(void 0, void 0, void 0, function*
     }
 });
 exports.getRecentQuizs = getRecentQuizs;
+const getGeneralQuizGlobalResultByUserId = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.params.id;
+        // Fetch total points for each user and rank them
+        const allUserPoints = yield userQuestionMappingModel_1.default.aggregate([
+            {
+                $group: {
+                    _id: "$userId",
+                    totalPoints: {
+                        $sum: {
+                            $cond: [{ $eq: ["$isCorrect", true] }, 10, 0]
+                        }
+                    }
+                }
+            },
+            { $sort: { totalPoints: -1 } }, // Sort by total points in descending order
+            {
+                $lookup: {
+                    from: "auths", // Assuming 'auths' is the name of the user collection
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "userInfo"
+                }
+            },
+            { $unwind: "$userInfo" }, // Unwind to get the user information
+            {
+                $project: {
+                    _id: 1,
+                    totalPoints: 1,
+                    rank: { $literal: 0 }, // Placeholder for rank, to be updated later
+                    "userInfo.fullName": 1 // Include the user fullName in the output
+                }
+            }
+        ]);
+        // Assign ranks to users based on total points
+        const userRanks = allUserPoints.map((user, index) => (Object.assign(Object.assign({}, user), { rank: index + 1 })));
+        // Find the top 10 users
+        const topUsers = userRanks.slice(0, 10);
+        // Find the rank and points of the specified user
+        const userRankInfo = userRanks.find(user => user._id.toString() === userId);
+        if (!userRankInfo) {
+            return res.status(404).json({
+                status: false,
+                message: "User not found in the ranking."
+            });
+        }
+        res.status(200).json({
+            status: true,
+            message: "Leaderboard fetched successfully.",
+            userRank: userRankInfo.rank,
+            userTotalPoints: userRankInfo.totalPoints,
+            userName: userRankInfo.userInfo.fullName,
+            topUsers: topUsers.map(user => ({
+                userId: user._id,
+                totalPoints: user.totalPoints,
+                rank: user.rank,
+                userName: user.userInfo.fullName
+            }))
+        });
+    }
+    catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        res.status(500).json({
+            status: false,
+            message: "An error occurred while fetching the leaderboard."
+        });
+    }
+});
+exports.getGeneralQuizGlobalResultByUserId = getGeneralQuizGlobalResultByUserId;

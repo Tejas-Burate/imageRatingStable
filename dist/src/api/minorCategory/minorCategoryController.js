@@ -17,7 +17,6 @@ const minorCategoryModel_1 = __importDefault(require("./minorCategoryModel"));
 const createMinorCategory = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const MinorCategory = yield minorCategoryModel_1.default.create(Object.assign({}, req.body));
-        console.log('MinorCategory', MinorCategory);
         if (!MinorCategory) {
             res.status(400).json({ status: false, message: "Error for creating MinorCategory" });
             return;

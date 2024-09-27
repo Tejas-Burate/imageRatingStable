@@ -20,7 +20,6 @@ const questionCategoryModel_1 = __importDefault(require("./questionCategoryModel
 const createQuestionCategory = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const questionCategory = yield questionCategoryModel_1.default.create(Object.assign({}, req.body));
-        console.log('questionCategory', questionCategory);
         if (!questionCategory) {
             res.status(400).json({ status: false, message: "Error for creating QuestionCategory" });
             return;

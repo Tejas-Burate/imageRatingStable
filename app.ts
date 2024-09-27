@@ -20,7 +20,7 @@ app.use(
   })
 );
 app.use(express.json())
-// app.use(requestLogger);
+app.use(requestLogger);
 // app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.static(path.join(__dirname, "public/compressed")));

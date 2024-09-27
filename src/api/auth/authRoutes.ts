@@ -201,7 +201,7 @@ router.post("/googleAuthLogAndRegister", googleAuthLogAndRegister);
 router.get("/getAllAuth", getAllAuth);
 router.get("/getAuthById/:id", getAuthById);
 router.get("/checkUser/:id", checkUser);
-router.get("/checkUserActiveSession/:id", checkUserActiveSession);
+router.get("/checkUserActiveSession/:userId", checkUserActiveSession);
 router.post("/getAuthFilters", getAuthFilters);
 router.put("/updateAuthById/:id", updateAuthById);
 router.get("/updateUserCountry/:id", updateUserCountry);

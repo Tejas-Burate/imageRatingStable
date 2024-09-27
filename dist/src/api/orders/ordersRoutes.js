@@ -9,4 +9,5 @@ const router = express_1.default.Router();
 router.get("/getAllOrders", ordersController_1.getAllOrders);
 router.post("/createOrders", ordersController_1.createOrders);
 router.post("/verifyPayment", ordersController_1.verifyPayment);
+router.post("/getOrderDataFilters", ordersController_1.getOrderDataFilters);
 exports.default = router;

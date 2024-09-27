@@ -45,7 +45,6 @@ const verifyPaymentSignature = (razorpayResData) => {
         .createHmac("sha256", "qOV3jxYoEJ71Ksn1sbeZEJP7")
         .update(data)
         .digest("hex");
-    console.log('generatedSignature', generatedSignature);
     if (generatedSignature === razorpay_signature) {
         return true;
     }

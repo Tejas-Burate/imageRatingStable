@@ -9,7 +9,6 @@ import { Request, Response } from "express";
 const createQuestionCategory = async (req: Request, res: Response) => {
     try {
         const questionCategory = await questionCategoryModel.create({ ...req.body });
-        console.log('questionCategory', questionCategory)
 
         if (!questionCategory) {
             res.status(400).json({ status: false, message: "Error for creating QuestionCategory" });

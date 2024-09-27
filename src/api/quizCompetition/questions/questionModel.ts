@@ -14,11 +14,12 @@ const quizQuestionSchema = new Schema(
             required: true,
         },
         question: { type: String, required: true },
-        orgImgUrl: { type: String, required: true },
-        compImgUrl: { type: String, required: true },
+        orgImgUrl: { type: String, required: false },
+        compImgUrl: { type: String, required: false },
         optionList: { type: [optionSchema], required: true }, // Use the optionSchema here
         difficultyLevel: { type: Number, required: true },
         country: { type: String, required: false },
+        globalView: { type: Boolean, required: false },
         questionCreator: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Auth",

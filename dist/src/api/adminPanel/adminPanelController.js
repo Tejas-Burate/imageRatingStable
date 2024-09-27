@@ -174,13 +174,11 @@ const updateSelectedQuestionsQuestionOwner = (req, res) => __awaiter(void 0, voi
         }
         const oldOwnerObjectId = oldOwnerId;
         const newOwnerObjectId = newOwnerId;
-        console.log("Res", yield questionModel_1.default.countDocuments({ questionOwner: oldOwnerObjectId }));
         const result = yield questionModel_1.default.updateMany({
             questionOwner: oldOwnerObjectId,
             _id: { $in: selectedQuestionIds }
         }, { $set: { questionOwner: newOwnerObjectId } } // Update operation
         );
-        console.log('result', result);
         res.status(200).json({
             status: true,
             message: "Question owners updated successfully",

@@ -1,3 +1,4 @@
+import quizModel from "../../api/quizCompetition/quiz/quizModel";
 import sessionModel from "../../api/quizCompetition/session/sessionModel";
 import settingModel from "../../api/setting/settingModel";
 import { ObjectId } from "mongoose";
@@ -39,7 +40,6 @@ const getRecentThreeSessions = async (userId: String) => {
     const recentSessions = await sessionModel.find({ userId: userId })
         .sort({ createdAt: -1 })  // Sort by the `createdAt` field in descending order
         .limit(3).select("_id");  // Limit to the most recent three records
-    console.log('recentSessions', recentSessions)
 
     return recentSessions
 }
@@ -54,8 +54,18 @@ const getCurrentQuestionNoBySessions = async (sessionId: string) => {
     return (recentSession.questionCount || 0) + 1;
 }
 
+const hasQuizStarted = async (quizId: string) => {
+    const quiz = await quizModel.findById(quizId);
+    if (!quiz) {
+        throw new Error(`Quiz with ID ${quizId} not found.`);
+    }
+
+    const currentTime = new Date();
+    return currentTime > quiz.quizStartDateAndTime;
+}
+
 export = {
-    createSession, updateSession, getActiveSession, getActiveSessionBySessionId, getRecentThreeSessions, getCurrentQuestionNoBySessions
+    createSession, updateSession, getActiveSession, hasQuizStarted, getActiveSessionBySessionId, getRecentThreeSessions, getCurrentQuestionNoBySessions
 }
 
 

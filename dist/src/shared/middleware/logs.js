@@ -18,7 +18,6 @@ const authModel_1 = __importDefault(require("../../api/auth/authModel"));
 const requestLogger = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     const token = (_a = req.header("Authorization")) === null || _a === void 0 ? void 0 : _a.replace("Bearer ", "");
-    console.log('token', token);
     const deviceInfo = req.headers["user-agent"] || "Unknown device";
     const loginEndpoints = ["/auth/login", "/studentRegistration/login", "/auth/googleAuthLogAndRegister"]; // Add your additional login route here
     const isLoginApi = loginEndpoints.includes(req.originalUrl);

@@ -7,6 +7,7 @@ const express_1 = __importDefault(require("express"));
 const subscriptionPlanController_1 = require("./subscriptionPlanController");
 const router = express_1.default.Router();
 router.post("/createSubscriptions", subscriptionPlanController_1.createSubscriptions);
+router.post("/getSubscriptionPlanFilters", subscriptionPlanController_1.getSubscriptionPlanFilters);
 router.get("/getAllSubscriptionPlans", subscriptionPlanController_1.getAllSubscriptionPlans);
 router.get("/getSubscriptionPlanById/:id", subscriptionPlanController_1.getSubscriptionPlanById);
 router.get("/getSubscriptionPlanBySubscriptionTypeId/:id", subscriptionPlanController_1.getSubscriptionPlanBySubscriptionTypeId);

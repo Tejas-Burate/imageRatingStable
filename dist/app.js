@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const routesRegistry_1 = __importDefault(require("./src/config/routesRegistry"));
+const logs_1 = __importDefault(require("./src/shared/middleware/logs"));
 const cors_1 = __importDefault(require("cors"));
 const sample_1 = __importDefault(require("./src/api/routes/sample"));
 const path_1 = __importDefault(require("path"));
@@ -18,7 +19,7 @@ app.use((0, cors_1.default)({
     methods: ["GET", "POST", "DELETE", "UPDATE", "PUT", "PATCH"],
 }));
 app.use(express_1.default.json());
-// app.use(requestLogger);
+app.use(logs_1.default);
 // app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 app.use(express_1.default.static(path_1.default.join(__dirname, "public")));
 app.use(express_1.default.static(path_1.default.join(__dirname, "public/compressed")));

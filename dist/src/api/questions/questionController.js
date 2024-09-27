@@ -86,9 +86,9 @@ const getAllQuestion = (req, res) => __awaiter(void 0, void 0, void 0, function*
 exports.getAllQuestion = getAllQuestion;
 const getQuestionsFilters = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { search, limit = 10, // Default limit
-        start = 0, // Default start
-        categoryName, question, questionTime, difficultyLevel, country, questionCreator, questionOwner, } = req.body;
+        const { search, limit, // Default limit
+        start, // Default start
+        categoryName, question, questionTime, difficultyLevel, country, questionCreator, questionOwner } = req.body;
         const filter = {};
         if (search) {
             const searchRegex = new RegExp(search, "i");
@@ -97,6 +97,7 @@ const getQuestionsFilters = (req, res) => __awaiter(void 0, void 0, void 0, func
                 { orgImgUrl: searchRegex },
                 { compImgUrl: searchRegex },
                 { country: searchRegex },
+                { "optionList.optionValue": searchRegex }
             ];
         }
         if (categoryName) {
@@ -149,8 +150,7 @@ const getQuestionsFilters = (req, res) => __awaiter(void 0, void 0, void 0, func
             .limit(parseInt(limit))
             .populate("categoryId questionCreator questionOwner");
         if (questions.length === 0) {
-            res.status(404).json({ status: false, message: "No questions found" });
-            return;
+            return res.status(404).json({ status: false, message: "No questions found" });
         }
         res.status(200).json({
             status: true,
@@ -418,7 +418,6 @@ const getFiveQuestionByCategoryId = (req, res) => __awaiter(void 0, void 0, void
         endOfDay.setHours(23, 59, 59, 999);
         const categoriesWithCountryFilter = ["Geography", "Sports", "History", "Arts"];
         let questionQuery = { categoryId };
-        // Add country filter if the category is one of the specified categories
         if (categoriesWithCountryFilter.includes(categoryName)) {
             questionQuery.country = user.country;
         }
@@ -468,8 +467,8 @@ const getFiveQuestionByCategoryId = (req, res) => __awaiter(void 0, void 0, void
                 userId,
                 createdAt: { $gte: startOfDay, $lt: endOfDay }
             }).sort({ createdAt: -1 }).exec();
-            if (todayQuestions.length >= 15) {
-                return res.status(403).json({ status: false, message: "You have reached the daily limit of 10 questions for non-subscribed users." });
+            if (todayQuestions.length >= 15 || todayQuestions.length == 15) {
+                return res.status(403).json({ status: false, message: "You have reached the daily limit of 15 questions for non-subscribed users." });
             }
             const allQuestions = yield questionModel_1.default.find(questionQuery).populate({ path: "categoryId", select: "_id categoryName" });
             if (allQuestions.length === 0) {
@@ -620,6 +619,7 @@ const getNextQuestionByCategoryId = (req, res) => __awaiter(void 0, void 0, void
         res.status(500).json({
             status: false,
             message: "An error occurred while fetching the next question.",
+            error: error
         });
     }
 });
@@ -734,6 +734,11 @@ const bulkUploadQuestions = (req, res) => __awaiter(void 0, void 0, void 0, func
             else if (typeof item.country !== "string") {
                 invalidFields.push("country (should be string)");
             }
+            // if (!item.globalView) {
+            //     missingFields.push("globalView");
+            // } else if (typeof item.globalView !== "boolean") {
+            //     invalidFields.push("globalView (should be boolean)");
+            // }
             if (!item.questionCreator) {
                 missingFields.push("questionCreator");
             }
@@ -746,6 +751,7 @@ const bulkUploadQuestions = (req, res) => __awaiter(void 0, void 0, void 0, func
             else if (typeof item.questionOwner !== "string") {
                 invalidFields.push("questionOwner (should be string)");
             }
+            console.log('missingFields', missingFields);
             if (missingFields.length > 0 || invalidFields.length > 0) {
                 errors.push({
                     row: index + 1,
@@ -762,6 +768,7 @@ const bulkUploadQuestions = (req, res) => __awaiter(void 0, void 0, void 0, func
                 compImgUrl: item.compImgUrl,
                 difficultyLevel: item.difficultyLevel,
                 country: item.country,
+                globalView: item.globalView,
                 questionCreator: item.questionCreator,
                 questionOwner: item.questionOwner,
                 optionList,
