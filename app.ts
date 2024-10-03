@@ -11,7 +11,7 @@ import path from 'path';
 dotenv.config();
 const app = express();
 
-const PORT = process.env.PORT || 8084;
+const PORT = process.env.PORT || 8063;
 require("./src/config/dbConnection");
 app.use(
   cors({
@@ -20,7 +20,7 @@ app.use(
   })
 );
 app.use(express.json())
-app.use(requestLogger);
+// app.use(requestLogger);
 // app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.static(path.join(__dirname, "public/compressed")));

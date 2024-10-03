@@ -14,5 +14,6 @@ const quizCompetitionSchema = new mongoose_1.default.Schema({
     registrationStartDate: { type: Date, required: false },
     registrationEndDate: { type: Date, required: true },
     isActive: { type: Boolean, required: true, default: true },
+    tags: { type: Array, required: true },
 }, { timestamps: true });
 exports.default = mongoose_1.default.model("QuizCompetition", quizCompetitionSchema);

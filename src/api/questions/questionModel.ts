@@ -19,7 +19,7 @@ const questionSchema = new Schema(
         compImgUrl: { type: String, required: false },
         optionList: { type: [optionSchema], required: true }, // Use the optionSchema here
         difficultyLevel: { type: Number, required: true },
-        country: { type: String, required: false },
+        country: { type: Array, required: false },
         globalView: { type: Boolean, required: false },
         questionCreator: {
             type: mongoose.Schema.Types.ObjectId,
@@ -31,6 +31,8 @@ const questionSchema = new Schema(
             ref: "Auth",
             required: false,
         },
+        presentationCount: { type: Number, default: 0 },
+        lastPresentedAt: { type: Date, default: Date.now },
     },
     { timestamps: true }
 );

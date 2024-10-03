@@ -10,7 +10,8 @@ import {
     bulkUploadCompetitionQuestions,
     updateQuestionById,
     deleteQuestionById,
-    getCompetitionQuestionsFilters
+    getCompetitionQuestionsFilters,
+    getCompetitionQuizGlobalResultByUserId
 } from "./questionController";
 import multer from 'multer';
 const upload = multer({ storage: multer.memoryStorage() });
@@ -282,5 +283,6 @@ router.post("/getCompetitionQuestionsFilters", getCompetitionQuestionsFilters);
 router.post("/bulkUploadCompetitionQuestions", upload.single("file"), bulkUploadCompetitionQuestions);
 router.put("/updateQuestionById/:id", updateQuestionById);
 router.delete("/deleteQuestionById/:id", deleteQuestionById);
+router.post("/getCompetitionQuizGlobalResultByUserId", getCompetitionQuizGlobalResultByUserId);
 
 export default router;

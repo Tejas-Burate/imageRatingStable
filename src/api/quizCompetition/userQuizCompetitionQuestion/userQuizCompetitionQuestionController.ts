@@ -6,7 +6,7 @@ import settingModel from "../../setting/settingModel";
 
 const getAllUserQuizCompetitionQuestion = async (req: Request, res: Response) => {
     try {
-        const userQuizCompetitionQuestion = await userQuizCompetitionQuestionModel.find();
+        const userQuizCompetitionQuestion = await userQuizCompetitionQuestionModel.find().populate("userId questionId quizId");
         if (userQuizCompetitionQuestion.length === 0) {
             return res.status(404).json({ status: false, message: "data not found" })
         }

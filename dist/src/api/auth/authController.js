@@ -18,6 +18,7 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const roleModel_1 = __importDefault(require("../role/roleModel"));
 const jwtToken_1 = __importDefault(require("../../shared/utils/jwtToken"));
 const auth_1 = __importDefault(require("../../shared/utils/auth"));
+// import geoip from "geoip-lite";
 const geoip_country_1 = __importDefault(require("geoip-country"));
 const sessionModel_1 = __importDefault(require("../session/sessionModel"));
 const sessionModel_2 = __importDefault(require("../quizCompetition/session/sessionModel"));
@@ -228,6 +229,7 @@ exports.updateAuthById = updateAuthById;
 const updateUserCountry = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const id = req.params.id;
+        // const ip: any = "122.170.230.178";
         const ip = req.headers['x-forwarded-for'];
         let ipAddress;
         if (ip) {

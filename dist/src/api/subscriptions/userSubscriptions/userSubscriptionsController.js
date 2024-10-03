@@ -15,7 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAllUserSubscriptionsByUserId = exports.getUserSubscriptionsById = exports.getAllUserSubscriptions = void 0;
 const userSubscriptionsModel_1 = __importDefault(require("./userSubscriptionsModel"));
 const getAllUserSubscriptions = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const userSubscriptions = yield userSubscriptionsModel_1.default.find();
+    const userSubscriptions = yield userSubscriptionsModel_1.default.find().populate("userId planId typeId");
     if (userSubscriptions.length === 0) {
         return res.status(404).json({ status: false, message: "User Subscriptions data not found" });
     }

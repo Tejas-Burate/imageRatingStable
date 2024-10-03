@@ -20,6 +20,7 @@ const authSchema = new mongoose_1.default.Schema({
     googleAuthId: { type: String, required: false },
     preferences: { type: Array, required: false },
     existingUser: { type: Boolean, required: false },
-    subscription: { type: Boolean, required: true, default: false }
+    subscription: { type: Boolean, required: true, default: false },
+    tags: { type: Array, required: false }
 }, { timestamps: true });
 exports.default = mongoose_1.default.model("Auth", authSchema);

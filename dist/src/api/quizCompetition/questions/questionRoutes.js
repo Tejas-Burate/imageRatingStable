@@ -264,4 +264,5 @@ router.post("/getCompetitionQuestionsFilters", questionController_1.getCompetiti
 router.post("/bulkUploadCompetitionQuestions", upload.single("file"), questionController_1.bulkUploadCompetitionQuestions);
 router.put("/updateQuestionById/:id", questionController_1.updateQuestionById);
 router.delete("/deleteQuestionById/:id", questionController_1.deleteQuestionById);
+router.post("/getCompetitionQuizGlobalResultByUserId", questionController_1.getCompetitionQuizGlobalResultByUserId);
 exports.default = router;

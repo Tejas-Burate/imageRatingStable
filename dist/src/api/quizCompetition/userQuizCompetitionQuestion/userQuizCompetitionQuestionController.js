@@ -18,7 +18,7 @@ const userQuizCompetitionQuestionModel_1 = __importDefault(require("./userQuizCo
 const settingModel_1 = __importDefault(require("../../setting/settingModel"));
 const getAllUserQuizCompetitionQuestion = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const userQuizCompetitionQuestion = yield userQuizCompetitionQuestionModel_1.default.find();
+        const userQuizCompetitionQuestion = yield userQuizCompetitionQuestionModel_1.default.find().populate("userId questionId quizId");
         if (userQuizCompetitionQuestion.length === 0) {
             return res.status(404).json({ status: false, message: "data not found" });
         }

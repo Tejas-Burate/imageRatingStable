@@ -29,7 +29,7 @@ const createUserQuestionMapping = async (req: Request, res: Response) => {
 
 const getAllUserQuestionMapping = async (req: Request, res: Response) => {
     try {
-        const user = await userQuestionMappingModel.find();
+        const user = await userQuestionMappingModel.find().populate("userId questionId categoryId");
 
         if (user.length === 0) {
             res.status(404).json({ status: false, message: "UserQuestionMapping data not found" });

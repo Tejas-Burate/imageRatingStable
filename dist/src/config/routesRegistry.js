@@ -22,5 +22,6 @@ const routesRegistry = (app) => {
     app.use("/minorCategory", require("../api/minorCategory/minorCategoryRoutes").default);
     app.use("/order", require("../api/orders/ordersRoutes").default);
     app.use("/userSubscriptions", require("../api/subscriptions/userSubscriptions/userSubscriptionsRoutes").default);
+    app.use("/tags", require("../api/tag/tagRoutes").default);
 };
 exports.default = routesRegistry;

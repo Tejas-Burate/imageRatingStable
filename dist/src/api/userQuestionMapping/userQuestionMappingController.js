@@ -37,7 +37,7 @@ const createUserQuestionMapping = (req, res) => __awaiter(void 0, void 0, void 0
 exports.createUserQuestionMapping = createUserQuestionMapping;
 const getAllUserQuestionMapping = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const user = yield userQuestionMappingModel_1.default.find();
+        const user = yield userQuestionMappingModel_1.default.find().populate("userId questionId categoryId");
         if (user.length === 0) {
             res.status(404).json({ status: false, message: "UserQuestionMapping data not found" });
             return;

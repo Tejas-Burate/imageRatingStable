@@ -41,7 +41,7 @@ const questionSchema = new mongoose_1.Schema({
     compImgUrl: { type: String, required: false },
     optionList: { type: [optionSchema], required: true }, // Use the optionSchema here
     difficultyLevel: { type: Number, required: true },
-    country: { type: String, required: false },
+    country: { type: Array, required: false },
     globalView: { type: Boolean, required: false },
     questionCreator: {
         type: mongoose_1.default.Schema.Types.ObjectId,
@@ -53,5 +53,7 @@ const questionSchema = new mongoose_1.Schema({
         ref: "Auth",
         required: false,
     },
+    presentationCount: { type: Number, default: 0 },
+    lastPresentedAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 exports.default = mongoose_1.default.model("Question", questionSchema);

@@ -5,6 +5,7 @@ import roleModel from "../role/roleModel";
 import generateJwtToken from "../../shared/utils/jwtToken";
 import Auth from "../../shared/utils/auth";
 import mongoose from 'mongoose';
+// import geoip from "geoip-lite";
 import geoip from "geoip-country";
 import generalQuizSessionModel from "../session/sessionModel";
 import competitionQuizSessionModel from "../quizCompetition/session/sessionModel"
@@ -235,6 +236,7 @@ const updateAuthById = async (req: Request, res: Response) => {
 const updateUserCountry = async (req: Request, res: Response) => {
     try {
         const id = req.params.id;
+        // const ip: any = "122.170.230.178";
         const ip: any = req.headers['x-forwarded-for'];
         let ipAddress;
         if (ip) {

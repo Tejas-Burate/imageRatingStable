@@ -11,6 +11,7 @@ const quizCompetitionSchema = new mongoose.Schema({
     registrationStartDate: { type: Date, required: false },
     registrationEndDate: { type: Date, required: true },
     isActive: { type: Boolean, required: true, default: true },
+    tags: { type: Array, required: true },
 },
     { timestamps: true });
 

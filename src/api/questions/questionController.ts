@@ -4,6 +4,11 @@ import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import xlsx from "xlsx";
+import fs from 'fs';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
+import sharp from 'sharp';
 import session from "../../shared/utils/session";
 import setting from "../../shared/utils/setting";
 import subscription from "../../shared/utils/subscription";
@@ -49,8 +54,8 @@ const createQuestion = async (req: Request, res: Response) => {
 
         const question = await questionModel.create({
             ...req.body,
-            questionCreator: decoded.userInfo._id as string,
-            questionOwner: decoded.userInfo._id,
+            questionCreator: decoded.userId as string,
+            questionOwner: decoded.userId,
         });
 
         if (!question) {
@@ -67,7 +72,7 @@ const createQuestion = async (req: Request, res: Response) => {
         });
     } catch (error) {
         console.log("error", error);
-        res.status(500).json({ status: false, message: error });
+        res.status(500).json({ status: false, message: error, error: error });
     }
 };
 
@@ -102,8 +107,8 @@ const getQuestionsFilters = async (req: Request, res: Response) => {
     try {
         const {
             search,
-            limit, // Default limit
-            start, // Default start
+            limit = 10, // Default limit
+            start = 0,  // Default start
             categoryName,
             question,
             questionTime,
@@ -117,11 +122,18 @@ const getQuestionsFilters = async (req: Request, res: Response) => {
 
         if (search) {
             const searchRegex = new RegExp(search, "i");
+            const [fullName, categoryName] = await Promise.all([
+                authModel.findOne({ fullName: searchRegex }),
+                questionCategoryModel.findOne({ categoryName: searchRegex }),
+            ]);
             filter.$or = [
                 { question: searchRegex },
                 { orgImgUrl: searchRegex },
                 { compImgUrl: searchRegex },
                 { country: searchRegex },
+                { questionCreator: fullName?._id },
+                { questionOwner: fullName?._id },
+                { categoryId: categoryName?._id },
                 { "optionList.optionValue": searchRegex }
             ];
         }
@@ -133,8 +145,6 @@ const getQuestionsFilters = async (req: Request, res: Response) => {
 
             if (categories.length > 0) {
                 filter.categoryId = { $in: categories.map(c => c._id) };
-            } else {
-                return res.status(404).json({ status: false, message: "No matching categories found" });
             }
         }
 
@@ -161,8 +171,6 @@ const getQuestionsFilters = async (req: Request, res: Response) => {
 
             if (creators.length > 0) {
                 filter.questionCreator = { $in: creators.map(c => c._id) };
-            } else {
-                return res.status(404).json({ status: false, message: "No matching creators found" });
             }
         }
 
@@ -173,8 +181,6 @@ const getQuestionsFilters = async (req: Request, res: Response) => {
 
             if (owners.length > 0) {
                 filter.questionOwner = { $in: owners.map(o => o._id) };
-            } else {
-                return res.status(404).json({ status: false, message: "No matching owners found" });
             }
         }
 
@@ -198,6 +204,8 @@ const getQuestionsFilters = async (req: Request, res: Response) => {
         res.status(500).json({ status: false, error: "Internal server error", message: error });
     }
 };
+
+
 
 
 const getQuestionById = async (req: Request, res: Response) => {
@@ -306,165 +314,6 @@ const deleteQuestionById = async (req: Request, res: Response) => {
 };
 
 
-// const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
-//     try {
-//         const { userId, categoryId } = req.body;
-
-//         if (!categoryId || !userId) {
-//             return res
-//                 .status(400)
-//                 .json({ status: false, message: "Missing required parameters." });
-//         }
-
-//         const user = await authModel.findById(userId);
-//         if (!user) {
-//             return res
-//                 .status(404)
-//                 .json({ status: false, message: `User with ID ${userId} is not found.` });
-//         }
-
-//         const startOfDay = new Date();
-//         startOfDay.setHours(0, 0, 0, 0);
-//         const endOfDay = new Date();
-//         endOfDay.setHours(23, 59, 59, 999);
-
-//         if (user.subscription === true) {
-//             // For subscribed users, apply question prioritization logic
-//             const allQuestions = await questionModel.find({ categoryId })
-//                 .populate({ path: "categoryId", select: "_id categoryName" });
-
-//             if (allQuestions.length === 0) {
-//                 return res.status(404).json({
-//                     status: false,
-//                     message: `No questions found for category ID ${categoryId}.`,
-//                 });
-//             }
-
-//             const questionsWithOptionValues = allQuestions.map((question) => {
-//                 const optionListWithIds = question.optionList.map((option) => ({
-//                     optionValue: option.optionValue,
-//                     _id: option._id,
-//                 }));
-
-//                 return {
-//                     ...question.toObject(), // Convert Mongoose document to plain object
-//                     optionList: optionListWithIds, // Replace optionList with optionValue and _id
-//                 };
-//             });
-
-
-//             const answeredQuestions = await userQuestionMappingModel.find({ userId, categoryId }).select("questionId status");
-//             const answeredQuestionIds = answeredQuestions.map(q => q.questionId.toString());
-
-//             const notYetPresented = questionsWithOptionValues.filter(q => !answeredQuestionIds.includes(q._id.toString()));
-//             const unAttempted = answeredQuestions.filter(q => q.status === "UnAttempted").map(q => q.questionId.toString());
-//             const wronglyAnswered = answeredQuestions.filter(q => q.status === "WronglyAnswered").map(q => q.questionId.toString());
-//             const correctlyAnswered = answeredQuestions.filter(q => q.status === "CorrectlyAnswered").map(q => q.questionId.toString());
-
-//             let prioritizedQuestions = notYetPresented.length > 0 ? notYetPresented
-//                 : unAttempted.length > 0 ? questionsWithOptionValues.filter(q => unAttempted.includes(q._id.toString()))
-//                     : wronglyAnswered.length > 0 ? questionsWithOptionValues.filter(q => wronglyAnswered.includes(q._id.toString()))
-//                         : questionsWithOptionValues.filter(q => correctlyAnswered.includes(q._id.toString()));
-
-//             if (prioritizedQuestions.length === 0) {
-//                 return res.status(404).json({
-//                     status: false,
-//                     message: "No new questions available for this category.",
-//                 });
-//             }
-
-//             const randomIndex = Math.floor(Math.random() * prioritizedQuestions.length);
-//             const selectedQuestion = prioritizedQuestions[randomIndex];
-
-//             const activeSession = await createSession(userId, categoryId);
-
-//             return res.status(200).json({
-//                 status: true,
-//                 message: "Question data fetched successfully.",
-//                 sessionId: activeSession,
-//                 data: selectedQuestion,
-//                 questionNumber: activeSession.questionCount + 1,
-//                 totalQuestions: await getTotalQuestionsCount(),
-//                 questionTime: await getQuestionsTime(),
-//             });
-//         } else {
-//             const todayQuestions = await userQuestionMappingModel.find({
-//                 userId,
-//                 createdAt: { $gte: startOfDay, $lt: endOfDay }
-//             }).sort({ createdAt: -1 }).exec();
-
-//             if (todayQuestions.length >= 10) {
-//                 return res.status(403).json({
-//                     status: false,
-//                     message: "You have reached the daily limit of 10 questions for non-subscribed users."
-//                 });
-//             }
-
-//             const allQuestions = await questionModel.find({ categoryId })
-//                 .populate({ path: "categoryId", select: "_id categoryName" });
-
-//             if (allQuestions.length === 0) {
-//                 return res.status(404).json({
-//                     status: false,
-//                     message: `No questions found for category ID ${categoryId}.`,
-//                 });
-//             }
-
-//             const questionsWithOptionValues = allQuestions.map((question) => {
-//                 const optionListWithIds = question.optionList.map((option) => ({
-//                     optionValue: option.optionValue,
-//                     _id: option._id,
-//                 }));
-
-//                 return {
-//                     ...question.toObject(), // Convert Mongoose document to plain object
-//                     optionList: optionListWithIds, // Replace optionList with optionValue and _id
-//                 };
-//             });
-
-//             const answeredQuestions = await userQuestionMappingModel.find({ userId, categoryId }).select("questionId status");
-//             const answeredQuestionIds = answeredQuestions.map(q => q.questionId.toString());
-
-//             const notYetPresented = questionsWithOptionValues.filter(q => !answeredQuestionIds.includes(q._id.toString()));
-//             const unAttempted = answeredQuestions.filter(q => q.status === "UnAttempted").map(q => q.questionId.toString());
-//             const wronglyAnswered = answeredQuestions.filter(q => q.status === "WronglyAnswered").map(q => q.questionId.toString());
-
-//             let prioritizedQuestions = notYetPresented.length > 0 ? notYetPresented
-//                 : unAttempted.length > 0 ? questionsWithOptionValues.filter(q => unAttempted.includes(q._id.toString()))
-//                     : wronglyAnswered.length > 0 ? questionsWithOptionValues.filter(q => wronglyAnswered.includes(q._id.toString()))
-//                         : [];
-
-//             if (prioritizedQuestions.length === 0) {
-//                 return res.status(404).json({
-//                     status: false,
-//                     message: "No new questions available for this category.",
-//                 });
-//             }
-
-//             const randomIndex = Math.floor(Math.random() * prioritizedQuestions.length);
-//             const selectedQuestion = prioritizedQuestions[randomIndex];
-
-//             const activeSession = await createSession(userId, categoryId);
-
-//             return res.status(200).json({
-//                 status: true,
-//                 message: "Question data fetched successfully.",
-//                 sessionId: activeSession,
-//                 data: selectedQuestion,
-//                 questionNumber: activeSession.questionCount + 1,
-//                 totalQuestions: await getTotalQuestionsCount(),
-//                 questionTime: await getQuestionsTime(),
-//             });
-//         }
-//     } catch (error: any) {
-//         console.log("error", error);
-//         res.status(500).json({
-//             status: false,
-//             message: error.message || "Internal server error",
-//         });
-//     }
-// };
-
 const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
     try {
         const { userId, categoryId } = req.body;
@@ -491,12 +340,22 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
         endOfDay.setHours(23, 59, 59, 999);
 
         const categoriesWithCountryFilter = ["Geography", "Sports", "History", "Arts"];
-
         let questionQuery: any = { categoryId };
 
         if (categoriesWithCountryFilter.includes(categoryName)) {
-            questionQuery.country = user.country;
+            questionQuery = {
+                categoryId,
+                $or: [
+                    { globalView: true },
+                    { country: { $in: user.country } }
+                ]
+            };
+        } else {
+            questionQuery.globalView = true; // Ensure global questions are always included
         }
+
+        console.log('questionQuery', questionQuery);
+
 
         if (await isGeneralQuizSubscription(userId)) {
             if (await generalQuizPlanExpired(userId)) {
@@ -545,6 +404,7 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
                 message: "Question data fetched successfully.",
                 sessionId: activeSession,
                 data: selectedQuestion,
+                questionOccurringCount: await userQuestionMappingModel.countDocuments({ userId: userId, questionId: selectedQuestion._id }) + 1,
                 questionNumber: activeSession.questionCount + 1,
                 totalQuestions: await getTotalQuestionsCount(),
                 questionTime: await getQuestionsTime(),
@@ -560,6 +420,7 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
             }
 
             const allQuestions = await questionModel.find(questionQuery).populate({ path: "categoryId", select: "_id categoryName" });
+            // console.log('allQuestions', allQuestions)
 
             if (allQuestions.length === 0) {
                 return res.status(404).json({ status: false, message: `No questions found for category ID ${categoryId}.` });
@@ -591,7 +452,11 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
             }
 
             const randomIndex = Math.floor(Math.random() * prioritizedQuestions.length);
+            // console.log('randomIndex', randomIndex)
             const selectedQuestion = prioritizedQuestions[randomIndex];
+            //Count Logic
+            console.log('userQuestion', userQuestion)
+            console.log('selectedQuestion', selectedQuestion)
 
             const activeSession = await createSession(userId, categoryId);
 
@@ -600,6 +465,7 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
                 message: "Question data fetched successfully.",
                 sessionId: activeSession,
                 data: selectedQuestion,
+                questionOccurringCount: await userQuestionMappingModel.countDocuments({ userId: userId, questionId: selectedQuestion._id }) + 1,
                 questionNumber: activeSession.questionCount + 1,
                 totalQuestions: await getTotalQuestionsCount(),
                 questionTime: await getQuestionsTime(),
@@ -610,6 +476,8 @@ const getFiveQuestionByCategoryId = async (req: Request, res: Response) => {
         res.status(500).json({ status: false, message: error.message || "Internal server error" });
     }
 };
+
+
 
 
 const getNextQuestionByCategoryId = async (req: Request, res: Response) => {
@@ -657,9 +525,23 @@ const getNextQuestionByCategoryId = async (req: Request, res: Response) => {
         let questionQuery: any = { categoryId, difficultyLevel };
 
         // Add country filter if the category is one of the specified categories
+        // if (categoriesWithCountryFilter.includes(categoryName)) {
+        //     questionQuery.country = { $in: user.country };
+        // }
+
         if (categoriesWithCountryFilter.includes(categoryName)) {
-            questionQuery.country = user.country;
+            questionQuery = {
+                categoryId,
+                difficultyLevel,
+                $or: [
+                    { globalView: true },
+                    { country: { $in: user.country } }
+                ]
+            };
+        } else {
+            questionQuery.globalView = true; // Ensure global questions are always included
         }
+
 
         // Find answered questions in the current session to exclude them from the next question selection
         const answeredQuestionsInSession = await userQuestionMappingModel
@@ -757,6 +639,7 @@ const getNextQuestionByCategoryId = async (req: Request, res: Response) => {
             status: true,
             message: "Question data fetched successfully.",
             data: question,
+            questionOccurringCount: await userQuestionMappingModel.countDocuments({ userId: userId, questionId: question._id }) + 1,
             questionNumber: await getCurrentQuestionNoBySessions(sessionId),
             totalQuestions: await getTotalQuestionsCount(),
             questionTime: await getQuestionsTime(),
@@ -840,135 +723,136 @@ const verifyQuestionAnswer = async (req: Request, res: Response) => {
     }
 };
 
-const bulkUploadQuestions = async (req: Request, res: Response) => {
-    try {
-        const file = req.file;
-        const categoryId = req.query.categoryId;
+// const bulkUploadQuestions = async (req: Request, res: Response) => {
+//     try {
+//         const file = req.file;
+//         const categoryId = req.query.categoryId;
 
-        if (!file) {
-            return res.status(400).json({ status: false, message: 'No file uploaded' });
-        }
+//         if (!file) {
+//             return res.status(400).json({ status: false, message: 'No file uploaded' });
+//         }
 
-        if (!categoryId) {
-            return res.status(400).json({
-                status: 400,
-                message: "CategoryId is required",
-            });
-        }
+//         if (!categoryId) {
+//             return res.status(400).json({
+//                 status: 400,
+//                 message: "CategoryId is required",
+//             });
+//         }
 
-        const workbook = xlsx.read(file.buffer, { type: 'buffer' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const data = xlsx.utils.sheet_to_json(worksheet);
+//         const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+//         const sheetName = workbook.SheetNames[0];
+//         const worksheet = workbook.Sheets[sheetName];
+//         const data = xlsx.utils.sheet_to_json(worksheet);
 
-        const errors: any[] = [];
-        const badData: any[] = [];
+//         const errors: any[] = [];
+//         const badData: any[] = [];
 
-        const questions: any = data.map((item: any, index: number) => {
-            const optionList = [];
-            for (let i = 0; i < 5; i++) {
-                const optionValue = item[`optionList[${i}].optionValue`];
-                const isCorrect = item[`optionList[${i}].isCorrect`];
+//         const questions: any = data.map((item: any, index: number) => {
+//             const optionList = [];
+//             for (let i = 0; i < 5; i++) {
+//                 const optionValue = item[`optionList[${i}].optionValue`];
+//                 const isCorrect = item[`optionList[${i}].isCorrect`];
 
-                if (optionValue !== undefined && optionValue !== '') {
-                    optionList.push({ optionValue, isCorrect: isCorrect || false });
-                }
-            }
+//                 if (optionValue !== undefined && optionValue !== '') {
+//                     optionList.push({ optionValue, isCorrect: isCorrect || false });
+//                 }
+//             }
 
-            const missingFields = [];
-            const invalidFields = [];
+//             const missingFields = [];
+//             const invalidFields = [];
 
-            if (!item.question) {
-                missingFields.push("question");
-            } else if (typeof item.question !== "string") {
-                invalidFields.push("question (should be string)");
-            }
+//             if (!item.question) {
+//                 missingFields.push("question");
+//             } else if (typeof item.question !== "string") {
+//                 invalidFields.push("question (should be string)");
+//             }
 
 
 
-            // if (!item.orgImgUrl) {
-            //     missingFields.push("orgImgUrl");
-            // } else if (typeof item.orgImgUrl !== "string") {
-            //     invalidFields.push("orgImgUrl (should be string)");
-            // }
+//             // if (!item.orgImgUrl) {
+//             //     missingFields.push("orgImgUrl");
+//             // } else if (typeof item.orgImgUrl !== "string") {
+//             //     invalidFields.push("orgImgUrl (should be string)");
+//             // }
 
-            // if (!item.compImgUrl) {
-            //     missingFields.push("compImgUrl");
-            // } else if (typeof item.compImgUrl !== "string") {
-            //     invalidFields.push("compImgUrl (should be string)");
-            // }
+//             // if (!item.compImgUrl) {
+//             //     missingFields.push("compImgUrl");
+//             // } else if (typeof item.compImgUrl !== "string") {
+//             //     invalidFields.push("compImgUrl (should be string)");
+//             // }
 
-            if (!item.difficultyLevel) {
-                missingFields.push("difficultyLevel");
-            } else if (typeof item.difficultyLevel !== "number") {
-                invalidFields.push("difficultyLevel (should be number)");
-            }
+//             if (!item.difficultyLevel) {
+//                 missingFields.push("difficultyLevel");
+//             } else if (typeof item.difficultyLevel !== "number") {
+//                 invalidFields.push("difficultyLevel (should be number)");
+//             }
 
-            if (!item.country) {
-                missingFields.push("country");
-            } else if (typeof item.country !== "string") {
-                invalidFields.push("country (should be string)");
-            }
-            // if (!item.globalView) {
-            //     missingFields.push("globalView");
-            // } else if (typeof item.globalView !== "boolean") {
-            //     invalidFields.push("globalView (should be boolean)");
-            // }
+//             if (!item.country) {
+//                 missingFields.push("country");
+//             } else if (typeof item.country !== "string") {
+//                 invalidFields.push("country (should be string)");
+//             }
+//             // if (!item.globalView) {
+//             //     missingFields.push("globalView");
+//             // } else if (typeof item.globalView !== "boolean") {
+//             //     invalidFields.push("globalView (should be boolean)");
+//             // }
 
-            if (!item.questionCreator) {
-                missingFields.push("questionCreator");
-            } else if (typeof item.questionCreator !== "string") {
-                invalidFields.push("questionCreator (should be string)");
-            }
+//             if (!item.questionCreator) {
+//                 missingFields.push("questionCreator");
+//             } else if (typeof item.questionCreator !== "string") {
+//                 invalidFields.push("questionCreator (should be string)");
+//             }
 
-            if (!item.questionOwner) {
-                missingFields.push("questionOwner");
-            } else if (typeof item.questionOwner !== "string") {
-                invalidFields.push("questionOwner (should be string)");
-            }
+//             if (!item.questionOwner) {
+//                 missingFields.push("questionOwner");
+//             } else if (typeof item.questionOwner !== "string") {
+//                 invalidFields.push("questionOwner (should be string)");
+//             }
 
-            console.log('missingFields', missingFields)
-            if (missingFields.length > 0 || invalidFields.length > 0) {
-                errors.push({
-                    row: index + 1,
-                    missingFields,
-                    invalidFields,
-                });
-                badData.push({ ...item, row: index + 1 });
-            }
+//             console.log('missingFields', missingFields)
+//             if (missingFields.length > 0 || invalidFields.length > 0) {
+//                 errors.push({
+//                     row: index + 1,
+//                     missingFields,
+//                     invalidFields,
+//                 });
+//                 badData.push({ ...item, row: index + 1 });
+//             }
 
-            return {
-                question: item.question,
-                categoryId: categoryId, // Use categoryId from req.params
-                questionTime: item.questionTime,
-                orgImgUrl: item.orgImgUrl,
-                compImgUrl: item.compImgUrl,
-                difficultyLevel: item.difficultyLevel,
-                country: item.country,
-                globalView: item.globalView,
-                questionCreator: item.questionCreator,
-                questionOwner: item.questionOwner,
-                optionList,
-            };
-        });
+//             return {
+//                 question: item.question,
+//                 categoryId: categoryId, // Use categoryId from req.params
+//                 questionTime: item.questionTime,
+//                 orgImgUrl: item.orgImgUrl,
+//                 compImgUrl: item.compImgUrl,
+//                 difficultyLevel: item.difficultyLevel,
+//                 country: item.country,
+//                 globalView: item.globalView,
+//                 questionCreator: item.questionCreator,
+//                 questionOwner: item.questionOwner,
+//                 optionList,
+//             };
+//         });
 
-        if (errors.length > 0) {
-            return res.status(400).json({
-                status: 400,
-                message: "There are errors in the Excel file",
-                errors,
-                badData,
-            });
-        }
+//         if (errors.length > 0) {
+//             return res.status(400).json({
+//                 status: 400,
+//                 message: "There are errors in the Excel file",
+//                 errors,
+//                 badData,
+//             });
+//         }
 
-        const insertedQuestions = await questionModel.insertMany(questions);
+//         const insertedQuestions = await questionModel.insertMany(questions);
 
-        res.status(201).json({ status: true, message: 'Questions uploaded successfully', data: insertedQuestions });
-    } catch (error) {
-        console.error('Error during bulk upload:', error);
-        res.status(500).json({ status: false, message: 'Internal server error', error });
-    }
-};
+//         res.status(201).json({ status: true, message: 'Questions uploaded successfully', data: insertedQuestions });
+//     } catch (error) {
+//         console.error('Error during bulk upload:', error);
+//         res.status(500).json({ status: false, message: 'Internal server error', error });
+//     }
+// };
+
 
 const getQuestionsCountByCategory = async (req: Request, res: Response) => {
     try {
@@ -1015,8 +899,188 @@ const getQuestionsCountByCategory = async (req: Request, res: Response) => {
     }
 };
 
+const originalDir = path.resolve(__dirname, "../../../public/originals");
+const compressedDir = path.resolve(__dirname, "../../../public/compressed");
 
+// Ensure the directories exist
+if (!fs.existsSync(originalDir)) {
+    fs.mkdirSync(originalDir, { recursive: true });
+}
+if (!fs.existsSync(compressedDir)) {
+    fs.mkdirSync(compressedDir, { recursive: true });
+}
 
+// Multer storage configuration for saving original images
+const storage = multer.memoryStorage();
+
+const upload = multer({
+    storage,
+    limits: {
+        fileSize: 1024 * 1024 * 10, // Limit file size to 10MB
+    },
+});
+
+const bulkUploadQuestions = async (req: Request, res: Response) => {
+    try {
+        const file = req.file;
+        const categoryId = req.query.categoryId;
+
+        if (!file) {
+            return res.status(400).json({ status: false, message: 'No file uploaded' });
+        }
+
+        if (!categoryId) {
+            return res.status(400).json({
+                status: 400,
+                message: "CategoryId is required",
+            });
+        }
+
+        const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const data = xlsx.utils.sheet_to_json(worksheet);
+
+        const errors: any[] = [];
+        const badData: any[] = [];
+
+        const questions: any = await Promise.all(data.map(async (item: any, index: number) => {
+            const optionList = [];
+            for (let i = 0; i < 5; i++) {
+                const optionValue = item[`optionList[${i}].optionValue`];
+                const isCorrect = item[`optionList[${i}].isCorrect`];
+
+                if (optionValue !== undefined && optionValue !== '') {
+                    optionList.push({ optionValue, isCorrect: isCorrect || false });
+                }
+            }
+
+            const missingFields = [];
+            const invalidFields = [];
+
+            if (!item.question) {
+                missingFields.push("question");
+            } else if (typeof item.question !== "string") {
+                invalidFields.push("question (should be string)");
+            }
+
+            if (!item.difficultyLevel) {
+                missingFields.push("difficultyLevel");
+            } else if (typeof item.difficultyLevel !== "number") {
+                invalidFields.push("difficultyLevel (should be number)");
+            }
+
+            if (!item.country) {
+                missingFields.push("country");
+            } else if (typeof item.country !== "string") {
+                invalidFields.push("country (should be string)");
+            }
+
+            if (!item.questionCreator) {
+                missingFields.push("questionCreator");
+            } else if (typeof item.questionCreator !== "string") {
+                invalidFields.push("questionCreator (should be string)");
+            }
+
+            if (!item.questionOwner) {
+                missingFields.push("questionOwner");
+            } else if (typeof item.questionOwner !== "string") {
+                invalidFields.push("questionOwner (should be string)");
+            }
+
+            // Upload images and get URLs
+            let orgImgUrl = null;
+            let compImgUrl = null;
+
+            if (item.orgImgUrl) {
+                orgImgUrl = await saveImageLocallyAndCompress(item.orgImgUrl);
+            }
+
+            if (item.compImgUrl) {
+                compImgUrl = await saveImageLocallyAndCompress(item.compImgUrl);
+            }
+
+            if (missingFields.length > 0 || invalidFields.length > 0) {
+                errors.push({
+                    row: index + 1,
+                    missingFields,
+                    invalidFields,
+                });
+                badData.push({ ...item, row: index + 1 });
+            }
+
+            return {
+                question: item.question,
+                categoryId: categoryId,
+                questionTime: item.questionTime,
+                orgImgUrl,
+                compImgUrl,
+                difficultyLevel: item.difficultyLevel,
+                country: item.country,
+                globalView: item.globalView,
+                questionCreator: item.questionCreator,
+                questionOwner: item.questionOwner,
+                optionList,
+            };
+        }));
+
+        if (errors.length > 0) {
+            return res.status(400).json({
+                status: 400,
+                message: "There are errors in the Excel file",
+                errors,
+                badData,
+            });
+        }
+
+        const insertedQuestions = await questionModel.insertMany(questions);
+
+        res.status(201).json({ status: true, message: 'Questions uploaded successfully', data: insertedQuestions });
+    } catch (error) {
+        console.error('Error during bulk upload:', error);
+        res.status(500).json({ status: false, message: 'Internal server error', error });
+    }
+};
+
+// Helper function to save an image locally and compress it
+const saveImageLocallyAndCompress = async (imagePath: string) => {
+    try {
+        const fileExt = path.extname(imagePath);
+        const fileName = `${uuidv4()}${fileExt}`;
+        const originalPath = path.join(originalDir, fileName);
+        const compressedFileName = `compressed-${fileName.split('.')[0]}.webp`; // Convert to WebP format
+        const compressedPath = path.join(compressedDir, compressedFileName);
+
+        // Ensure the directory exists
+        await fs.promises.mkdir(path.dirname(originalPath), { recursive: true });
+
+        // Read the image file and save it to the original folder
+        const fileContent = await fs.promises.readFile(imagePath);
+        await fs.promises.writeFile(originalPath, fileContent);
+
+        // Compress and convert the image to WebP using sharp
+        await sharp(originalPath)
+            .resize({
+                width: 800,
+                withoutEnlargement: true,
+            })
+            .webp({
+                quality: 60, // Adjust the quality for WebP format
+            })
+            .toFile(compressedPath);
+
+        // Return the URLs to the saved images
+        return {
+            // originalUrl: `/originals/${fileName}`,
+            // compressedUrl: `/compressed/${compressedFileName}`,
+            originalUrl: `https://imagerating.ioweb3.in/${fileName}`,
+            compressedUrl: `https://imagerating.ioweb3.in/${compressedFileName}`,
+        };
+    } catch (error) {
+        console.error('Error saving and compressing image:', error);
+        throw new Error('Failed to save and compress image');
+    }
+};
 
 export {
     createQuestion,
@@ -1029,6 +1093,7 @@ export {
     updateQuestionById,
     deleteQuestionById,
     bulkUploadQuestions,
+    upload,
     getQuestionsCountByCategory,
     getQuestionsFilters
 };

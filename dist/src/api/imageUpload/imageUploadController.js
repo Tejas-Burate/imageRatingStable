@@ -72,6 +72,8 @@ const imgUpload = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         // const compressedImageUrl = `http://localhost:8080/${compressedFileName}`;
         const originalImageUrl = `https://imagerating.ioweb3.in/${req.file.filename}`;
         const compressedImageUrl = `https://imagerating.ioweb3.in/${compressedFileName}`;
+        // const originalImageUrl = `https://quizgeneralimage.chargurev.com/${req.file.filename}`;
+        // const compressedImageUrl = `https://quizgeneralimage.chargurev.com/${compressedFileName}`;
         res.status(200).json({
             status: 200,
             message: "Image(s) uploaded, compressed, and saved successfully",

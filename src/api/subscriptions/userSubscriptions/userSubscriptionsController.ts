@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import userSubscriptionsModel from "./userSubscriptionsModel";
 
 const getAllUserSubscriptions = async (req: Request, res: Response) => {
-    const userSubscriptions = await userSubscriptionsModel.find();
+    const userSubscriptions = await userSubscriptionsModel.find().populate("userId planId typeId");
     if (userSubscriptions.length === 0) {
         return res.status(404).json({ status: false, message: "User Subscriptions data not found" })
     }

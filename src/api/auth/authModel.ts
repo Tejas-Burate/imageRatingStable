@@ -18,7 +18,8 @@ const authSchema = new mongoose.Schema(
     googleAuthId: { type: String, required: false },
     preferences: { type: Array, required: false },
     existingUser: { type: Boolean, required: false },
-    subscription: { type: Boolean, required: true, default: false }
+    subscription: { type: Boolean, required: true, default: false },
+    tags: { type: Array, required: false }
   },
   { timestamps: true }
 );

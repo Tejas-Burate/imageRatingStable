@@ -102,8 +102,8 @@ const getCompetitionQuestionsFilters = async (req: Request, res: Response) => {
     try {
         const {
             search,
-            limit = 10, // Default limit
-            start = 0, // Default start
+            limit, // Default limit
+            start, // Default start
             quizName,
             question,
             difficultyLevel,
@@ -116,11 +116,20 @@ const getCompetitionQuestionsFilters = async (req: Request, res: Response) => {
 
         if (search) {
             const searchRegex = new RegExp(search, "i");
+            console.log('searchRegex', searchRegex)
+            const [categoryName, fullName] = await Promise.all([
+                authModel.findOne({ fullName: RegExp(search, "i") }),
+                quizModel.findOne({ quizName: searchRegex }),
+            ]);
+            console.log('fullName', fullName)
             filter.$or = [
                 { question: searchRegex },
                 { orgImgUrl: searchRegex },
                 { compImgUrl: searchRegex },
                 { country: searchRegex },
+                { questionCreator: fullName?._id },
+                { questionOwner: fullName?._id },
+                { quizId: categoryName?._id },
                 { "optionList.optionValue": searchRegex },
             ];
         }
@@ -308,99 +317,6 @@ const deleteQuestionById = async (req: Request, res: Response) => {
         res.status(500).json({ status: false, message: error });
     }
 };
-
-// const getFiveByQuestionByQuizId = async (req: Request, res: Response) => {
-//     try {
-//         const { userId, quizId } = req.body;
-
-//         if (!quizId || !userId) {
-//             return res
-//                 .status(400)
-//                 .json({ status: false, message: "Missing required parameters." });
-//         }
-
-//         const user = await authModel.findById(userId);
-//         if (!user) {
-//             return res
-//                 .status(404)
-//                 .json({ status: false, message: `User with ID ${userId} is not found.` });
-//         }
-
-//         const quizIsGiven = await sessionModel.findOne({ userId: userId, quizId: quizId });
-
-//         if (quizIsGiven) {
-//             return res.status(401).json({ status: false, message: "You have already given this quiz" });
-//         }
-
-//         const startOfDay = new Date();
-//         startOfDay.setHours(0, 0, 0, 0);
-//         const endOfDay = new Date();
-//         endOfDay.setHours(23, 59, 59, 999);
-
-//         const allQuestions = await questionModel.find({ quizId })
-//             .populate({ path: "quizId", select: "_id quizName" });
-
-//         if (allQuestions.length === 0) {
-//             return res.status(404).json({
-//                 status: false,
-//                 message: `No questions found for category ID ${quizId}.`,
-//             });
-//         }
-
-//         const questionsWithOptionValues = allQuestions.map((question) => {
-//             const optionListWithIds = question.optionList.map((option) => ({
-//                 optionValue: option.optionValue,
-//                 _id: option._id,
-//             }));
-
-//             return {
-//                 ...question.toObject(), // Convert Mongoose document to plain object
-//                 optionList: optionListWithIds, // Replace optionList with optionValue and _id
-//             };
-//         });
-
-//         const answeredQuestions = await userQuizCompetitionModel.find({ userId, quizId }).select("questionId status");
-//         const answeredQuestionIds = answeredQuestions.map(q => q.questionId.toString());
-
-//         const notYetPresented = questionsWithOptionValues.filter(q => !answeredQuestionIds.includes(q._id.toString()));
-//         const unAttempted = answeredQuestions.filter(q => q.status === "UnAttempted").map(q => q.questionId.toString());
-//         const wronglyAnswered = answeredQuestions.filter(q => q.status === "WronglyAnswered").map(q => q.questionId.toString());
-//         const correctlyAnswered = answeredQuestions.filter(q => q.status === "CorrectlyAnswered").map(q => q.questionId.toString());
-
-//         let prioritizedQuestions = notYetPresented.length > 0 ? notYetPresented
-//             : unAttempted.length > 0 ? questionsWithOptionValues.filter(q => unAttempted.includes(q._id.toString()))
-//                 : wronglyAnswered.length > 0 ? questionsWithOptionValues.filter(q => wronglyAnswered.includes(q._id.toString()))
-//                     : questionsWithOptionValues.filter(q => correctlyAnswered.includes(q._id.toString()));
-
-//         if (prioritizedQuestions.length === 0) {
-//             return res.status(404).json({
-//                 status: false,
-//                 message: "No new questions available for this category.",
-//             });
-//         }
-
-//         const randomIndex = Math.floor(Math.random() * prioritizedQuestions.length);
-//         const selectedQuestion = prioritizedQuestions[randomIndex];
-
-//         const activeSession = await createSession(userId, quizId);
-
-//         return res.status(200).json({
-//             status: true,
-//             message: "Question data fetched successfully.",
-//             sessionId: activeSession,
-//             data: selectedQuestion,
-//             questionNumber: activeSession.questionCount + 1,
-//             totalQuestions: await getCompetitionTotalQuestionsCount(),
-//             questionTime: await getCompetitionQuestionsTime(),
-//         });
-//     } catch (error: any) {
-//         console.log("error", error);
-//         res.status(500).json({
-//             status: false,
-//             message: error.message || "Internal server error",
-//         });
-//     }
-// };
 
 const getFiveByQuestionByQuizId = async (req: Request, res: Response) => {
     try {
@@ -896,6 +812,92 @@ const bulkUploadCompetitionQuestions = async (req: Request, res: Response) => {
     }
 };
 
+const getCompetitionQuizGlobalResultByUserId = async (req: Request, res: Response) => {
+    try {
+        const { quizId, userId } = req.body;
+
+        if (!quizId || !userId) {
+            return res.status(400).json({ status: false, message: "Missing required parameters: quizId and userId are required." });
+        }
+
+        // Convert quizId to ObjectId
+        const objectIdQuizId = new mongoose.Types.ObjectId(quizId);
+
+        // Fetch results and rank all users
+        const allUserResults = await userQuizCompetitionModel.aggregate([
+            {
+                $match: { quizId: objectIdQuizId } // Filter by quizId
+            },
+            {
+                $group: {
+                    _id: "$userId", // Group by `userId` to aggregate results for each user
+                    correctAnswers: { $sum: { $cond: [{ $eq: ["$isCorrect", true] }, 1, 0] } }, // Count of correct answers
+                    totalTimeTaken: { $sum: { $cond: [{ $eq: ["$isCorrect", true] }, "$timeTaken", 0] } }, // Sum of time taken for correct answers
+                }
+            },
+            {
+                $sort: { correctAnswers: -1, totalTimeTaken: 1 } // Sort by correct answers (desc) and total time taken (asc)
+            },
+            {
+                $lookup: {
+                    from: 'auths', // The collection to join
+                    localField: '_id', // The field from the input documents
+                    foreignField: '_id', // The field from the documents of the "from" collection
+                    as: 'userDetails' // The output array field
+                }
+            },
+            {
+                $unwind: '$userDetails' // Unwind the array to deconstruct the userDetails array
+            },
+            {
+                $addFields: {
+                    userId: '$_id' // Add the `userId` field
+                }
+            }
+        ]);
+
+        // Assign ranks to all users
+        const rankedResults = allUserResults.map((result, index) => ({
+            rank: index + 1,
+            userId: result.userId,
+            correctAnswers: result.correctAnswers,
+            totalTimeTaken: result.totalTimeTaken,
+            userDetails: {
+                fullName: result.userDetails.fullName,
+                email: result.userDetails.email
+            }
+        }));
+
+        // Find the top 5 users
+        const topUsers = rankedResults.slice(0, 5);
+
+        // Find the specified user's rank
+        const userRankInfo = rankedResults.find(user => user.userId.toString() === userId);
+        if (!userRankInfo) {
+            return res.status(404).json({ status: false, message: "User not found in the ranking." });
+        }
+
+        res.status(200).json({
+            status: true,
+            message: "Top 5 users fetched successfully.",
+            userRank: userRankInfo.rank,
+            userTotalPoints: userRankInfo.correctAnswers,
+            userName: userRankInfo.userDetails.fullName,
+            topUsers: topUsers.map(user => ({
+                userId: user.userId,
+                totalPoints: user.correctAnswers,
+                rank: user.rank,
+                userName: user.userDetails.fullName
+            }))
+        });
+    } catch (error) {
+        console.log('Error fetching top five results:', error);
+        return res.status(500).json({ status: false, message: "Internal server error", error });
+    }
+};
+
+
+
 export {
     createQuizQuestion,
     verifyQuizQuestionAnswer,
@@ -908,4 +910,5 @@ export {
     updateQuestionById,
     deleteQuestionById,
     getCompetitionQuestionsFilters,
+    getCompetitionQuizGlobalResultByUserId,
 };
