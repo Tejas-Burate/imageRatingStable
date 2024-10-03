@@ -12,17 +12,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getQuestionsFilters = exports.getQuestionsCountByCategory = exports.upload = exports.bulkUploadQuestions = exports.deleteQuestionById = exports.updateQuestionById = exports.getNextQuestionByCategoryId = exports.getFiveQuestionByCategoryId = exports.getAllQuestionByCategoryId = exports.getQuestionById = exports.getAllQuestion = exports.verifyQuestionAnswer = exports.createQuestion = void 0;
+exports.getQuestionsFilters = exports.getQuestionsCountByCategory = exports.bulkUploadQuestions = exports.deleteQuestionById = exports.updateQuestionById = exports.getNextQuestionByCategoryId = exports.getFiveQuestionByCategoryId = exports.getAllQuestionByCategoryId = exports.getQuestionById = exports.getAllQuestion = exports.verifyQuestionAnswer = exports.createQuestion = void 0;
 const userQuestionMapping_1 = __importDefault(require("../../shared/utils/userQuestionMapping"));
 const questionModel_1 = __importDefault(require("./questionModel"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const xlsx_1 = __importDefault(require("xlsx"));
-const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
-const uuid_1 = require("uuid");
-const multer_1 = __importDefault(require("multer"));
-const sharp_1 = __importDefault(require("sharp"));
 const session_1 = __importDefault(require("../../shared/utils/session"));
 const setting_1 = __importDefault(require("../../shared/utils/setting"));
 const subscription_1 = __importDefault(require("../../shared/utils/subscription"));
@@ -579,114 +574,121 @@ const verifyQuestionAnswer = (req, res) => __awaiter(void 0, void 0, void 0, fun
     }
 });
 exports.verifyQuestionAnswer = verifyQuestionAnswer;
-// const bulkUploadQuestions = async (req: Request, res: Response) => {
-//     try {
-//         const file = req.file;
-//         const categoryId = req.query.categoryId;
-//         if (!file) {
-//             return res.status(400).json({ status: false, message: 'No file uploaded' });
-//         }
-//         if (!categoryId) {
-//             return res.status(400).json({
-//                 status: 400,
-//                 message: "CategoryId is required",
-//             });
-//         }
-//         const workbook = xlsx.read(file.buffer, { type: 'buffer' });
-//         const sheetName = workbook.SheetNames[0];
-//         const worksheet = workbook.Sheets[sheetName];
-//         const data = xlsx.utils.sheet_to_json(worksheet);
-//         const errors: any[] = [];
-//         const badData: any[] = [];
-//         const questions: any = data.map((item: any, index: number) => {
-//             const optionList = [];
-//             for (let i = 0; i < 5; i++) {
-//                 const optionValue = item[`optionList[${i}].optionValue`];
-//                 const isCorrect = item[`optionList[${i}].isCorrect`];
-//                 if (optionValue !== undefined && optionValue !== '') {
-//                     optionList.push({ optionValue, isCorrect: isCorrect || false });
-//                 }
-//             }
-//             const missingFields = [];
-//             const invalidFields = [];
-//             if (!item.question) {
-//                 missingFields.push("question");
-//             } else if (typeof item.question !== "string") {
-//                 invalidFields.push("question (should be string)");
-//             }
-//             // if (!item.orgImgUrl) {
-//             //     missingFields.push("orgImgUrl");
-//             // } else if (typeof item.orgImgUrl !== "string") {
-//             //     invalidFields.push("orgImgUrl (should be string)");
-//             // }
-//             // if (!item.compImgUrl) {
-//             //     missingFields.push("compImgUrl");
-//             // } else if (typeof item.compImgUrl !== "string") {
-//             //     invalidFields.push("compImgUrl (should be string)");
-//             // }
-//             if (!item.difficultyLevel) {
-//                 missingFields.push("difficultyLevel");
-//             } else if (typeof item.difficultyLevel !== "number") {
-//                 invalidFields.push("difficultyLevel (should be number)");
-//             }
-//             if (!item.country) {
-//                 missingFields.push("country");
-//             } else if (typeof item.country !== "string") {
-//                 invalidFields.push("country (should be string)");
-//             }
-//             // if (!item.globalView) {
-//             //     missingFields.push("globalView");
-//             // } else if (typeof item.globalView !== "boolean") {
-//             //     invalidFields.push("globalView (should be boolean)");
-//             // }
-//             if (!item.questionCreator) {
-//                 missingFields.push("questionCreator");
-//             } else if (typeof item.questionCreator !== "string") {
-//                 invalidFields.push("questionCreator (should be string)");
-//             }
-//             if (!item.questionOwner) {
-//                 missingFields.push("questionOwner");
-//             } else if (typeof item.questionOwner !== "string") {
-//                 invalidFields.push("questionOwner (should be string)");
-//             }
-//             console.log('missingFields', missingFields)
-//             if (missingFields.length > 0 || invalidFields.length > 0) {
-//                 errors.push({
-//                     row: index + 1,
-//                     missingFields,
-//                     invalidFields,
-//                 });
-//                 badData.push({ ...item, row: index + 1 });
-//             }
-//             return {
-//                 question: item.question,
-//                 categoryId: categoryId, // Use categoryId from req.params
-//                 questionTime: item.questionTime,
-//                 orgImgUrl: item.orgImgUrl,
-//                 compImgUrl: item.compImgUrl,
-//                 difficultyLevel: item.difficultyLevel,
-//                 country: item.country,
-//                 globalView: item.globalView,
-//                 questionCreator: item.questionCreator,
-//                 questionOwner: item.questionOwner,
-//                 optionList,
-//             };
-//         });
-//         if (errors.length > 0) {
-//             return res.status(400).json({
-//                 status: 400,
-//                 message: "There are errors in the Excel file",
-//                 errors,
-//                 badData,
-//             });
-//         }
-//         const insertedQuestions = await questionModel.insertMany(questions);
-//         res.status(201).json({ status: true, message: 'Questions uploaded successfully', data: insertedQuestions });
-//     } catch (error) {
-//         console.error('Error during bulk upload:', error);
-//         res.status(500).json({ status: false, message: 'Internal server error', error });
-//     }
-// };
+const bulkUploadQuestions = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const file = req.file;
+        const categoryId = req.query.categoryId;
+        if (!file) {
+            return res.status(400).json({ status: false, message: 'No file uploaded' });
+        }
+        if (!categoryId) {
+            return res.status(400).json({
+                status: 400,
+                message: "CategoryId is required",
+            });
+        }
+        const workbook = xlsx_1.default.read(file.buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const data = xlsx_1.default.utils.sheet_to_json(worksheet);
+        const errors = [];
+        const badData = [];
+        const questions = data.map((item, index) => {
+            const optionList = [];
+            for (let i = 0; i < 5; i++) {
+                const optionValue = item[`optionList[${i}].optionValue`];
+                const isCorrect = item[`optionList[${i}].isCorrect`];
+                if (optionValue !== undefined && optionValue !== '') {
+                    optionList.push({ optionValue, isCorrect: isCorrect || false });
+                }
+            }
+            const missingFields = [];
+            const invalidFields = [];
+            if (!item.question) {
+                missingFields.push("question");
+            }
+            else if (typeof item.question !== "string") {
+                invalidFields.push("question (should be string)");
+            }
+            // if (!item.orgImgUrl) {
+            //     missingFields.push("orgImgUrl");
+            // } else if (typeof item.orgImgUrl !== "string") {
+            //     invalidFields.push("orgImgUrl (should be string)");
+            // }
+            // if (!item.compImgUrl) {
+            //     missingFields.push("compImgUrl");
+            // } else if (typeof item.compImgUrl !== "string") {
+            //     invalidFields.push("compImgUrl (should be string)");
+            // }
+            if (!item.difficultyLevel) {
+                missingFields.push("difficultyLevel");
+            }
+            else if (typeof item.difficultyLevel !== "number") {
+                invalidFields.push("difficultyLevel (should be number)");
+            }
+            if (!item.country) {
+                missingFields.push("country");
+            }
+            else if (typeof item.country !== "string") {
+                invalidFields.push("country (should be string)");
+            }
+            // if (!item.globalView) {
+            //     missingFields.push("globalView");
+            // } else if (typeof item.globalView !== "boolean") {
+            //     invalidFields.push("globalView (should be boolean)");
+            // }
+            if (!item.questionCreator) {
+                missingFields.push("questionCreator");
+            }
+            else if (typeof item.questionCreator !== "string") {
+                invalidFields.push("questionCreator (should be string)");
+            }
+            if (!item.questionOwner) {
+                missingFields.push("questionOwner");
+            }
+            else if (typeof item.questionOwner !== "string") {
+                invalidFields.push("questionOwner (should be string)");
+            }
+            console.log('missingFields', missingFields);
+            if (missingFields.length > 0 || invalidFields.length > 0) {
+                errors.push({
+                    row: index + 1,
+                    missingFields,
+                    invalidFields,
+                });
+                badData.push(Object.assign(Object.assign({}, item), { row: index + 1 }));
+            }
+            return {
+                question: item.question,
+                categoryId: categoryId, // Use categoryId from req.params
+                questionTime: item.questionTime,
+                orgImgUrl: item.orgImgUrl,
+                compImgUrl: item.compImgUrl,
+                difficultyLevel: item.difficultyLevel,
+                country: item.country,
+                globalView: item.globalView,
+                questionCreator: item.questionCreator,
+                questionOwner: item.questionOwner,
+                optionList,
+            };
+        });
+        if (errors.length > 0) {
+            return res.status(400).json({
+                status: 400,
+                message: "There are errors in the Excel file",
+                errors,
+                badData,
+            });
+        }
+        const insertedQuestions = yield questionModel_1.default.insertMany(questions);
+        res.status(201).json({ status: true, message: 'Questions uploaded successfully', data: insertedQuestions });
+    }
+    catch (error) {
+        console.error('Error during bulk upload:', error);
+        res.status(500).json({ status: false, message: 'Internal server error', error });
+    }
+});
+exports.bulkUploadQuestions = bulkUploadQuestions;
 const getQuestionsCountByCategory = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const questionCounts = yield questionModel_1.default.aggregate([
@@ -732,165 +734,3 @@ const getQuestionsCountByCategory = (req, res) => __awaiter(void 0, void 0, void
     }
 });
 exports.getQuestionsCountByCategory = getQuestionsCountByCategory;
-const originalDir = path_1.default.resolve(__dirname, "../../../public/originals");
-const compressedDir = path_1.default.resolve(__dirname, "../../../public/compressed");
-// Ensure the directories exist
-if (!fs_1.default.existsSync(originalDir)) {
-    fs_1.default.mkdirSync(originalDir, { recursive: true });
-}
-if (!fs_1.default.existsSync(compressedDir)) {
-    fs_1.default.mkdirSync(compressedDir, { recursive: true });
-}
-// Multer storage configuration for saving original images
-const storage = multer_1.default.memoryStorage();
-const upload = (0, multer_1.default)({
-    storage,
-    limits: {
-        fileSize: 1024 * 1024 * 10, // Limit file size to 10MB
-    },
-});
-exports.upload = upload;
-const bulkUploadQuestions = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const file = req.file;
-        const categoryId = req.query.categoryId;
-        if (!file) {
-            return res.status(400).json({ status: false, message: 'No file uploaded' });
-        }
-        if (!categoryId) {
-            return res.status(400).json({
-                status: 400,
-                message: "CategoryId is required",
-            });
-        }
-        const workbook = xlsx_1.default.read(file.buffer, { type: 'buffer' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const data = xlsx_1.default.utils.sheet_to_json(worksheet);
-        const errors = [];
-        const badData = [];
-        const questions = yield Promise.all(data.map((item, index) => __awaiter(void 0, void 0, void 0, function* () {
-            const optionList = [];
-            for (let i = 0; i < 5; i++) {
-                const optionValue = item[`optionList[${i}].optionValue`];
-                const isCorrect = item[`optionList[${i}].isCorrect`];
-                if (optionValue !== undefined && optionValue !== '') {
-                    optionList.push({ optionValue, isCorrect: isCorrect || false });
-                }
-            }
-            const missingFields = [];
-            const invalidFields = [];
-            if (!item.question) {
-                missingFields.push("question");
-            }
-            else if (typeof item.question !== "string") {
-                invalidFields.push("question (should be string)");
-            }
-            if (!item.difficultyLevel) {
-                missingFields.push("difficultyLevel");
-            }
-            else if (typeof item.difficultyLevel !== "number") {
-                invalidFields.push("difficultyLevel (should be number)");
-            }
-            if (!item.country) {
-                missingFields.push("country");
-            }
-            else if (typeof item.country !== "string") {
-                invalidFields.push("country (should be string)");
-            }
-            if (!item.questionCreator) {
-                missingFields.push("questionCreator");
-            }
-            else if (typeof item.questionCreator !== "string") {
-                invalidFields.push("questionCreator (should be string)");
-            }
-            if (!item.questionOwner) {
-                missingFields.push("questionOwner");
-            }
-            else if (typeof item.questionOwner !== "string") {
-                invalidFields.push("questionOwner (should be string)");
-            }
-            // Upload images and get URLs
-            let orgImgUrl = null;
-            let compImgUrl = null;
-            if (item.orgImgUrl) {
-                orgImgUrl = yield saveImageLocallyAndCompress(item.orgImgUrl);
-            }
-            if (item.compImgUrl) {
-                compImgUrl = yield saveImageLocallyAndCompress(item.compImgUrl);
-            }
-            if (missingFields.length > 0 || invalidFields.length > 0) {
-                errors.push({
-                    row: index + 1,
-                    missingFields,
-                    invalidFields,
-                });
-                badData.push(Object.assign(Object.assign({}, item), { row: index + 1 }));
-            }
-            return {
-                question: item.question,
-                categoryId: categoryId,
-                questionTime: item.questionTime,
-                orgImgUrl,
-                compImgUrl,
-                difficultyLevel: item.difficultyLevel,
-                country: item.country,
-                globalView: item.globalView,
-                questionCreator: item.questionCreator,
-                questionOwner: item.questionOwner,
-                optionList,
-            };
-        })));
-        if (errors.length > 0) {
-            return res.status(400).json({
-                status: 400,
-                message: "There are errors in the Excel file",
-                errors,
-                badData,
-            });
-        }
-        const insertedQuestions = yield questionModel_1.default.insertMany(questions);
-        res.status(201).json({ status: true, message: 'Questions uploaded successfully', data: insertedQuestions });
-    }
-    catch (error) {
-        console.error('Error during bulk upload:', error);
-        res.status(500).json({ status: false, message: 'Internal server error', error });
-    }
-});
-exports.bulkUploadQuestions = bulkUploadQuestions;
-// Helper function to save an image locally and compress it
-const saveImageLocallyAndCompress = (imagePath) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const fileExt = path_1.default.extname(imagePath);
-        const fileName = `${(0, uuid_1.v4)()}${fileExt}`;
-        const originalPath = path_1.default.join(originalDir, fileName);
-        const compressedFileName = `compressed-${fileName.split('.')[0]}.webp`; // Convert to WebP format
-        const compressedPath = path_1.default.join(compressedDir, compressedFileName);
-        // Ensure the directory exists
-        yield fs_1.default.promises.mkdir(path_1.default.dirname(originalPath), { recursive: true });
-        // Read the image file and save it to the original folder
-        const fileContent = yield fs_1.default.promises.readFile(imagePath);
-        yield fs_1.default.promises.writeFile(originalPath, fileContent);
-        // Compress and convert the image to WebP using sharp
-        yield (0, sharp_1.default)(originalPath)
-            .resize({
-            width: 800,
-            withoutEnlargement: true,
-        })
-            .webp({
-            quality: 60, // Adjust the quality for WebP format
-        })
-            .toFile(compressedPath);
-        // Return the URLs to the saved images
-        return {
-            // originalUrl: `/originals/${fileName}`,
-            // compressedUrl: `/compressed/${compressedFileName}`,
-            originalUrl: `https://imagerating.ioweb3.in/${fileName}`,
-            compressedUrl: `https://imagerating.ioweb3.in/${compressedFileName}`,
-        };
-    }
-    catch (error) {
-        console.error('Error saving and compressing image:', error);
-        throw new Error('Failed to save and compress image');
-    }
-});
