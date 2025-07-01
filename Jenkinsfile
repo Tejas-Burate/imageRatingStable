@@ -5,18 +5,9 @@ pipeline {
         NODE_ENV = 'production'
     }
 
-    stages {
-        stage('Setup Node.js') {
-            steps {
-                // Install Node.js directly on the agent
-                sh '''
-                    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-                    sudo apt-get install -y nodejs
-                    node -v
-                    npm -v
-                '''
-            }
-        }
+    tools {
+        nodejs 'nodejs23'  // Must match name in Global Tool Configuration
+    }
 
         stage('Checkout Code') {
             steps {
