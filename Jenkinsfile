@@ -15,9 +15,9 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 // Use Node.js 20.x
-                tools {
-                    nodejs 'node-20'
-                }
+                // tools {
+                //     nodejs 'node-20'
+                // }
                 sh 'node -v' // confirm node version
                 sh 'npm install'
             }
