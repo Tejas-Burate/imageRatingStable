@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'node:20-alpine'  // Using Node.js 20 with Alpine (lightweight)
+            args '--user root'      // Optional: Run as root to avoid permission issues
+        }
+    }
 
     environment {
         NODE_ENV = 'production'
@@ -14,11 +19,8 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                // Use Node.js 20.x
-                // tools {
-                //     nodejs 'node-20'
-                // }
                 sh 'node -v' // confirm node version
+                sh 'npm -v'  // confirm npm version
                 sh 'npm install'
             }
         }
@@ -38,7 +40,21 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                sh 'scp -P 8080 -r ./dist Tejas-Burate@localhost:/dist/'
+                script {
+                    // Ensure SSH agent is available for scp
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: 'your-ssh-credentials-id',  // Create in Jenkins Credentials
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )]) {
+                        sh """
+                            mkdir -p ~/.ssh
+                            cp \$SSH_KEY ~/.ssh/id_rsa
+                            chmod 600 ~/.ssh/id_rsa
+                            scp -P 8080 -o StrictHostKeyChecking=no -r ./dist ${SSH_USER}@localhost:/dist/
+                        """
+                    }
+                }
             }
         }
     }
