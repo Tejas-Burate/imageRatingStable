@@ -5,10 +5,7 @@ pipeline {
         NODE_ENV = 'production'
     }
 
-    tools {
-        nodejs 'nodejs23'  // Must match name in Global Tool Configuration
-    }
-
+    stages {
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/Tejas-Burate/imageRatingStable.git'
@@ -17,6 +14,7 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
+                sh 'node -v'
                 sh 'npm install'
             }
         }
