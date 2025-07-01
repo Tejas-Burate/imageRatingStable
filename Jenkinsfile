@@ -1,16 +1,23 @@
 pipeline {
-    agent {
-        docker {
-            image 'node:20-alpine'  // Using Node.js 20 with Alpine (lightweight)
-            args '--user root'      // Optional: Run as root to avoid permission issues
-        }
-    }
+    agent any
 
     environment {
         NODE_ENV = 'production'
     }
 
     stages {
+        stage('Setup Node.js') {
+            steps {
+                // Install Node.js directly on the agent
+                sh '''
+                    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+                    sudo apt-get install -y nodejs
+                    node -v
+                    npm -v
+                '''
+            }
+        }
+
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/Tejas-Burate/imageRatingStable.git'
@@ -19,16 +26,14 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh 'node -v' // confirm node version
-                sh 'npm -v'  // confirm npm version
                 sh 'npm install'
             }
         }
 
         stage('Run Lint/Test') {
             steps {
-                sh 'npm run lint || true' // if linting is optional
-                sh 'npm test || true'     // if no test cases yet
+                sh 'npm run lint || true'
+                sh 'npm test || true'
             }
         }
 
@@ -41,9 +46,8 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    // Ensure SSH agent is available for scp
                     withCredentials([sshUserPrivateKey(
-                        credentialsId: 'your-ssh-credentials-id',  // Create in Jenkins Credentials
+                        credentialsId: 'your-ssh-credentials-id',
                         keyFileVariable: 'SSH_KEY',
                         usernameVariable: 'SSH_USER'
                     )]) {
