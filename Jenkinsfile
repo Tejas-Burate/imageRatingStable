@@ -23,18 +23,18 @@ pipeline {
             }
         }
 
-        stage('Run Lint/Test') {
-            steps {
-                sh 'npm run lint'
-                sh 'npm test'
-            }
-        }
-
-        // stage('Build') {
+        // stage('Run Lint/Test') {
         //     steps {
-        //         sh 'npm run build' // If you have a build step
+        //         sh 'npm run lint'
+        //         sh 'npm test'
         //     }
         // }
+
+        stage('Build') {
+            steps {
+                sh 'npm run build' // If you have a build step
+            }
+        }
 
         stage('Deploy') {
             steps {
