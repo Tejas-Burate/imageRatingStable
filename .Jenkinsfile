@@ -38,8 +38,10 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                // Example: Use scp/rsync to upload files or run deployment script
-                sh 'scp -r ./dist user@your-server:/var/www/app'
+                // Replace 'user' with your server's username
+                // Replace 'your-server' with your server's IP or hostname
+                // Replace '/var/www/app' with your deployment directory
+                sh 'scp -P 8080 -r ./dist Tejas-Burate@localhost:/dist/'
             }
         }
     }
